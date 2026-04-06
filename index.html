@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PPOSCAP — The Cap Is Eternal</title>
+  <meta name="description" content="La Gorra que El Tití nunca obtendrá. Tuya si estás listo." />
+
+  <!-- Open Graph para Instagram/TikTok previews -->
+  <meta property="og:title" content="PPOSCAP — La Gorra" />
+  <meta property="og:description" content="El objeto de poder. Disponible para quienes están listos." />
+  <meta property="og:image" content="assets/og-cover.png" />
+  <meta property="og:url" content="https://pposcap.github.io/gorra" />
+
+  <style>
+    /* ── RESET & BASE ───────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black:      #0A0A0A;
+      --charcoal:   #141414;
+      --gold:       #F5C400;
+      --terracota:  #C0392B;
+      --offwhite:   #F0EDE8;
+      --gray:       #888888;
+      --green-titi: #7FBF00;
+      --blue-mono:  #1A3A6B;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--black);
+      color: var(--offwhite);
+      font-family: 'Courier New', monospace;
+      overflow-x: hidden;
+    }
+
+    /* ── NAVBAR ─────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; width: 100%; z-index: 100;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 2rem;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(245,196,0,0.15);
+    }
+
+    .nav-logo {
+      font-size: 1.4rem; font-weight: 900; letter-spacing: 0.15em;
+      color: var(--offwhite);
+    }
+    .nav-logo span { color: var(--gold); }
+
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a {
+      color: var(--gray); text-decoration: none;
+      font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--gold); }
+
+    /* ── HERO ───────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      text-align: center;
+      padding: 6rem 2rem 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 40%, rgba(245,196,0,0.07) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .hero-label {
+      font-size: 0.7rem; letter-spacing: 0.4em; color: var(--gold);
+      text-transform: uppercase; margin-bottom: 1.5rem;
+    }
+
+    .hero-title {
+      font-size: clamp(3rem, 12vw, 8rem);
+      font-weight: 900; line-height: 0.9;
+      letter-spacing: -0.02em;
+      color: var(--offwhite);
+      margin-bottom: 1rem;
+    }
+    .hero-title .pp { color: var(--terracota); }
+    .hero-title .os { color: var(--offwhite); }
+    .hero-title .cap { color: var(--gold); }
+
+    .hero-sub {
+      font-size: clamp(0.85rem, 2.5vw, 1.1rem);
+      color: var(--gray); max-width: 480px;
+      line-height: 1.7; margin-bottom: 3rem;
+    }
+
+    .hero-sub em { color: var(--offwhite); font-style: normal; }
+
+    .btn-primary {
+      display: inline-block;
+      background: var(--gold); color: var(--black);
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem; font-weight: 700;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      padding: 1rem 2.5rem;
+      text-decoration: none;
+      border: none; cursor: pointer;
+      transition: transform 0.15s, background 0.15s;
+      clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+    }
+    .btn-primary:hover {
+      background: var(--offwhite);
+      transform: translateY(-2px);
+    }
+
+    .hero-scroll {
+      margin-top: 4rem; font-size: 0.65rem;
+      color: var(--gray); letter-spacing: 0.3em; text-transform: uppercase;
+      animation: blink 2s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* ── PRODUCT SECTION ────────────────────────────── */
+    .product {
+      padding: 6rem 2rem;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 4rem; align-items: center;
+      max-width: 1100px; margin: 0 auto;
+    }
+
+    .product-visual {
+      aspect-ratio: 1;
+      background: var(--charcoal);
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+    }
+
+    .product-visual::after {
+      content: '';
+      position: absolute; inset: 1px;
+      border: 1px solid rgba(245,196,0,0.2);
+      clip-path: polygon(0 0, calc(100% - 19px) 0, 100% 19px, 100% 100%, 19px 100%, 0 calc(100% - 19px));
+      pointer-events: none;
+    }
+
+    .product-placeholder {
+      font-size: 8rem; opacity: 0.15;
+      user-select: none;
+    }
+
+    .product-badge {
+      position: absolute; top: 1.5rem; right: 1.5rem;
+      background: var(--gold); color: var(--black);
+      font-size: 0.6rem; font-weight: 700;
+      letter-spacing: 0.2em; padding: 0.4rem 0.8rem;
+      text-transform: uppercase;
+    }
+
+    .product-info { padding: 1rem 0; }
+
+    .product-eyebrow {
+      font-size: 0.65rem; color: var(--terracota);
+      letter-spacing: 0.4em; text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    .product-name {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900; line-height: 1;
+      color: var(--offwhite); margin-bottom: 1.5rem;
+    }
+    .product-name span { color: var(--gold); }
+
+    .product-desc {
+      font-size: 0.9rem; color: var(--gray);
+      line-height: 1.8; margin-bottom: 2rem;
+    }
+
+    .product-features { list-style: none; margin-bottom: 2.5rem; }
+    .product-features li {
+      font-size: 0.8rem; color: var(--offwhite);
+      padding: 0.6rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; gap: 0.8rem;
+    }
+    .product-features li::before {
+      content: '▸'; color: var(--gold); font-size: 0.6rem;
+    }
+
+    .product-price {
+      font-size: 2.5rem; font-weight: 900;
+      color: var(--gold); margin-bottom: 1.5rem;
+    }
+    .product-price span {
+      font-size: 0.75rem; color: var(--gray);
+      font-weight: 400; margin-left: 0.5rem;
+    }
+
+    /* ── LORE SECTION ───────────────────────────────── */
+    .lore {
+      padding: 6rem 2rem;
+      background: var(--charcoal);
+      text-align: center;
+    }
+
+    .lore-inner { max-width: 720px; margin: 0 auto; }
+
+    .lore-title {
+      font-size: clamp(1.5rem, 5vw, 2.5rem);
+      font-weight: 900; color: var(--offwhite);
+      margin-bottom: 2rem;
+    }
+    .lore-title span { color: var(--gold); }
+
+    .lore-verse {
+      font-size: 1rem; color: var(--gray);
+      line-height: 2; font-style: italic;
+      margin-bottom: 3rem;
+      border-left: 2px solid var(--gold);
+      padding-left: 1.5rem; text-align: left;
+    }
+
+    .characters {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 1.5rem; margin-top: 3rem;
+    }
+
+    .char-card {
+      background: var(--black);
+      padding: 2rem; text-align: left;
+      border: 1px solid rgba(255,255,255,0.06);
+      position: relative; overflow: hidden;
+    }
+    .char-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0;
+      width: 3px; height: 100%;
+    }
+    .char-card.mono::before { background: var(--blue-mono); }
+    .char-card.titi::before { background: var(--green-titi); }
+
+    .char-name {
+      font-size: 0.65rem; letter-spacing: 0.3em;
+      text-transform: uppercase; margin-bottom: 0.5rem;
+    }
+    .char-card.mono .char-name { color: #4A90D9; }
+    .char-card.titi .char-name { color: var(--green-titi); }
+
+    .char-role {
+      font-size: 1.1rem; font-weight: 900;
+      color: var(--offwhite); margin-bottom: 0.8rem;
+    }
+    .char-desc { font-size: 0.78rem; color: var(--gray); line-height: 1.7; }
+
+    /* ── SOCIAL SECTION ─────────────────────────────── */
+    .social {
+      padding: 5rem 2rem;
+      text-align: center;
+    }
+
+    .social-title {
+      font-size: 0.7rem; letter-spacing: 0.4em;
+      color: var(--gray); text-transform: uppercase;
+      margin-bottom: 2.5rem;
+    }
+
+    .social-links {
+      display: flex; justify-content: center;
+      flex-wrap: wrap; gap: 1rem;
+    }
+
+    .social-btn {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.8rem 1.5rem;
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--offwhite); text-decoration: none;
+      font-size: 0.8rem; letter-spacing: 0.1em;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .social-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .social-btn .icon { font-size: 1.1rem; }
+
+    /* ── FOOTER ─────────────────────────────────────── */
+    footer {
+      padding: 2rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 1rem;
+    }
+
+    .footer-logo { font-size: 0.85rem; font-weight: 700; color: var(--gray); }
+    .footer-logo span { color: var(--gold); }
+    .footer-lema { font-size: 0.7rem; color: var(--gray); letter-spacing: 0.2em; font-style: italic; }
+
+    /* ── RESPONSIVE ─────────────────────────────────── */
+    @media (max-width: 768px) {
+      .product {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+      .characters { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo"><span>PP</span>OS<span style="color:var(--terracota)">CAP</span></div>
+    <ul class="nav-links">
+      <li><a href="#producto">La Gorra</a></li>
+      <li><a href="#universo">El Universo</a></li>
+      <li><a href="#redes">Redes</a></li>
+    </ul>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <p class="hero-label">El Objeto de Poder — Temporada 2026</p>
+    <h1 class="hero-title">
+      <span class="pp">PP</span><span class="os">OS</span><br>
+      <span class="cap">CAP</span>
+    </h1>
+    <p class="hero-sub">
+      La gorra que <em>El Tití nunca obtendrá.</em><br>
+      Disponible para quienes están listos.<br>
+      <em>lim(x→∞) — The cap is eternal.</em>
+    </p>
+    <a href="#producto" class="btn-primary">Obtener La Gorra</a>
+    <p class="hero-scroll">↓ scroll</p>
+  </section>
+
+  <!-- PRODUCT -->
+  <section class="product" id="producto">
+    <div class="product-visual">
+      <div class="product-placeholder">🧢</div>
+      <div class="product-badge">Limited Drop</div>
+    </div>
+
+    <div class="product-info">
+      <p class="product-eyebrow">El Tesoro Sagrado</p>
+      <h2 class="product-name">La Gorra<br><span>PPOSCAP</span></h2>
+      <p class="product-desc">
+        Snapback táctica. Panel rígido twill negro. Logo PP/OS bordado 3D en terracota,
+        CAP en amarillo ocre. Rayos bordados amarillo brillante. Pin de águila.
+        Parche circular con texto bíblico en la visera.
+      </p>
+      <ul class="product-features">
+        <li>Snapback panel rígido — ajuste universal</li>
+        <li>Bordado 3D PP/OS terracota + CAP ocre</li>
+        <li>Rayos amarillo brillante — identidad táctica</li>
+        <li>Pin de águila + parche bíblico en visera</li>
+        <li>Visera plana verde esmeralda</li>
+        <li>Edición limitada — Universo PPOSCAP 2026</li>
+      </ul>
+      <p class="product-price">
+        <!-- Precio a definir -->
+        <span>Precio disponible próximamente</span>
+      </p>
+      <a href="#redes" class="btn-primary">Seguirnos para el Drop</a>
+    </div>
+  </section>
+
+  <!-- LORE -->
+  <section class="lore" id="universo">
+    <div class="lore-inner">
+      <h2 class="lore-title">El <span>Universo</span></h2>
+      <blockquote class="lore-verse">
+        "The Lord is my light and my salvation; whom shall I fear?"<br>
+        — Lema PPOSCAP. Bordado en visera. Vivido en cada episodio.
+      </blockquote>
+
+      <div class="characters">
+        <div class="char-card mono">
+          <p class="char-name">Agente A</p>
+          <p class="char-role">El Mono — El Kernel</p>
+          <p class="char-desc">
+            Rhesus azul cobalto. Bomber jacket negro balístico.
+            Dueño absoluto de la gorra. Nunca corre. Nunca pierde el control.
+            La gorra es su identidad — y su escudo.
+          </p>
+        </div>
+        <div class="char-card titi">
+          <p class="char-name">Agente B</p>
+          <p class="char-role">El Tití — El Fracaso Poético</p>
+          <p class="char-desc">
+            Marmoset verde lima. Hoodie marrón siena.
+            Poeta del deseo imposible. Cada intento de obtener la gorra
+            termina en un evento cósmico de derrota. Y aun así lo intenta.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOCIAL -->
+  <section class="social" id="redes">
+    <p class="social-title">Sigue el universo PPOSCAP</p>
+    <div class="social-links">
+      <a href="https://www.facebook.com/PPOSCAP" target="_blank" class="social-btn">
+        <span class="icon">📘</span> PPOS CAP
+      </a>
+      <a href="https://www.instagram.com/PPOS_CAP" target="_blank" class="social-btn">
+        <span class="icon">📷</span> @PPOS_CAP
+      </a>
+      <a href="https://www.tiktok.com/@PPOsCAP" target="_blank" class="social-btn">
+        <span class="icon">🎵</span> @PPOsCAP
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo"><span>PP</span>OS<span style="color:var(--terracota)">CAP</span></div>
+    <p class="footer-lema">lim(x→∞) — The cap is eternal.</p>
+    <p style="font-size:0.65rem;color:var(--gray)">© 2026 PPOSCAP. All rights reserved.</p>
+  </footer>
+
+</body>
+</html>
