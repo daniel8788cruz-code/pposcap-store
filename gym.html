@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>GymSystem — MVP</title>
+  <meta name="theme-color" content="#0B0F14" />
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+
+  <style>
+    :root {
+      --bg: #0B0F14;
+      --card: #1A1F29;
+      --line: #232A36;
+      --accent: #00FF88;
+      --text-2: #9CA3AF;
+    }
+    html, body { background: var(--bg); color: #fff; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; min-height: 100vh; }
+
+    /* Native select arrow off, custom caret added in JS */
+    select { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+
+    /* Smooth motion (200-300ms) */
+    .fade-in { animation: fadeIn 220ms ease-out both; }
+    .slide-up { animation: slideUp 240ms ease-out both; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .scroll::-webkit-scrollbar { width: 4px; }
+    .scroll::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 8px; }
+
+    /* Disable iOS tap highlight */
+    button, [role="button"] { -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="env,react">
+    const { useState, useEffect, useReducer, useMemo, useRef, useCallback } = React;
+    const { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } = Recharts;
+
+    // ─────────────────────────────────────────────────────────
+    // CONSTANTS
+    // ─────────────────────────────────────────────────────────
+    const STORAGE_KEY = 'gym_system_v1';
+    const ACCENT = '#00FF88';
+
+    const MUSCLE_GROUPS = ['Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Pierna', 'Core', 'Glúteo'];
+    const EQUIPMENT     = ['Barra', 'Mancuerna', 'Máquina', 'Polea', 'Peso libre'];
+    const SETS_OPTS     = [1,2,3,4,5,6,7,8,9,10];
+    const REPS_OPTS     = [1,2,3,4,5,6,7,8,10,12,15,20,25,30];
+    const WEIGHT_OPTS   = [0,2.5,5,7.5,10,12.5,15,17.5,20,22.5,25,27.5,30,32.5,35,40,45,50,55,60,65,70,75,80,85,90,95,100,110,120,130,140,150,160,180,200];
+    const REST_OPTS     = [30,45,60,90,120,180,240,300];
+
+    // ─────────────────────────────────────────────────────────
+    // BUSINESS LOGIC
+    // ─────────────────────────────────────────────────────────
+    // Epley 1RM
+    const calc1RM = (w, r) => (r <= 0 || w <= 0) ? 0 : (r === 1 ? w : w * (1 + r / 30));
+
+    // Reverse Epley: max reps achievable at given weight given 1RM
+    const repsAt = (w, oneRM) => (w <= 0 || oneRM <= 0 || w >= oneRM) ? 0 : 30 * (oneRM / w - 1);
+
+    // RPE approximation: 10 = max effort, drop 1 per rep in reserve
+    const estimateRPE = (w, r, oneRM) => {
+      if (!oneRM || w <= 0) return null;
+      const max = repsAt(w, oneRM);
+      if (max <= 0) return 10;
+      const reserve = Math.max(0, max - r);
+      return Math.max(1, Math.min(10, Math.round(10 - reserve)));
+    };
+
+    // Volume = sets * reps * weight
+    const sessionVolume = (sets) => sets.reduce((acc, s) => acc + (s.weight * s.reps), 0);
+
+    const fatigueLevel = (totalWeeklyVolume) => {
+      if (totalWeeklyVolume < 2000)  return { label: 'Bajo',       color: '#FACC15', pct: 33 };
+      if (totalWeeklyVolume <= 5000) return { label: 'Óptimo',     color: ACCENT,    pct: 66 };
+      return                              { label: 'Sobrecarga',  color: '#EF4444', pct: 100 };
+    };
+
+    const uid = () => Math.random().toString(36).slice(2, 9);
+
+    // ─────────────────────────────────────────────────────────
+    // STATE: REDUCER + LOCALSTORAGE PERSISTENCE
+    // ─────────────────────────────────────────────────────────
+    const SEED = {
+      user: { name: 'Atleta' },
+      routines: [
+        {
+          id: 'r1', name: 'Push Day',
+          exercises: [
+            { id: 'e1', name: 'Bench Press',   group: 'Pecho',    equipment: 'Barra',     sets: 4, reps: 8,  weight: 60 },
+            { id: 'e2', name: 'Press Militar', group: 'Hombros',  equipment: 'Barra',     sets: 4, reps: 10, weight: 40 },
+            { id: 'e3', name: 'Tríceps Polea', group: 'Tríceps',  equipment: 'Polea',     sets: 3, reps: 12, weight: 25 },
+          ]
+        },
+        {
+          id: 'r2', name: 'Pull Day',
+          exercises: [
+            { id: 'e4', name: 'Dominadas',     group: 'Espalda',  equipment: 'Peso libre', sets: 4, reps: 8,  weight: 0  },
+            { id: 'e5', name: 'Remo Mancuerna',group: 'Espalda',  equipment: 'Mancuerna',  sets: 4, reps: 10, weight: 22.5 },
+            { id: 'e6', name: 'Curl Bíceps',   group: 'Bíceps',   equipment: 'Mancuerna',  sets: 4, reps: 12, weight: 15 },
+          ]
+        }
+      ],
+      workouts: [],
+      progress: [
+        { date: 'Lun', volume: 1200 },
+        { date: 'Mar', volume: 2100 },
+        { date: 'Mié', volume: 1800 },
+        { date: 'Jue', volume: 2400 },
+        { date: 'Vie', volume: 3100 },
+        { date: 'Sáb', volume: 0    },
+        { date: 'Dom', volume: 0    },
+      ],
+    };
+
+    const loadState = () => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return SEED;
+        const parsed = JSON.parse(raw);
+        return { ...SEED, ...parsed };
+      } catch { return SEED; }
+    };
+
+    const reducer = (state, action) => {
+      switch (action.type) {
+        case 'ADD_ROUTINE':
+          return { ...state, routines: [...state.routines, { id: uid(), name: action.name, exercises: [] }] };
+        case 'DELETE_ROUTINE':
+          return { ...state, routines: state.routines.filter(r => r.id !== action.id) };
+        case 'ADD_EXERCISE': {
+          return {
+            ...state,
+            routines: state.routines.map(r =>
+              r.id === action.routineId
+                ? { ...r, exercises: [...r.exercises, { id: uid(), ...action.exercise }] }
+                : r
+            )
+          };
+        }
+        case 'UPDATE_EXERCISE': {
+          return {
+            ...state,
+            routines: state.routines.map(r =>
+              r.id === action.routineId
+                ? { ...r, exercises: r.exercises.map(e => e.id === action.id ? { ...e, ...action.patch } : e) }
+                : r
+            )
+          };
+        }
+        case 'DELETE_EXERCISE': {
+          return {
+            ...state,
+            routines: state.routines.map(r =>
+              r.id === action.routineId
+                ? { ...r, exercises: r.exercises.filter(e => e.id !== action.id) }
+                : r
+            )
+          };
+        }
+        case 'LOG_SESSION': {
+          const vol = sessionVolume(action.sets);
+          const todayKey = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][new Date().getDay()];
+          return {
+            ...state,
+            workouts: [{ id: uid(), date: new Date().toISOString(), exerciseId: action.exerciseId, exerciseName: action.exerciseName, sets: action.sets }, ...state.workouts].slice(0, 200),
+            progress: state.progress.map(p => p.date === todayKey ? { ...p, volume: p.volume + vol } : p),
+          };
+        }
+        case 'RESET':
+          return SEED;
+        default:
+          return state;
+      }
+    };
+
+    // ─────────────────────────────────────────────────────────
+    // ATOMIC COMPONENTS
+    // ─────────────────────────────────────────────────────────
+    const Card = ({ children, className = '', accent = false }) => (
+      <div className={`bg-[#1A1F29] rounded-xl border ${accent ? 'border-l-4 border-l-[#00FF88] border-y-[#232A36] border-r-[#232A36]' : 'border-[#232A36]'} ${className}`}>
+        {children}
+      </div>
+    );
+
+    const Btn = ({ children, onClick, variant = 'primary', className = '', disabled }) => {
+      const v = {
+        primary: 'bg-[#00FF88] text-[#0B0F14] font-bold',
+        ghost:   'border border-[#00FF88] text-[#00FF88]',
+        flat:    'bg-[#0B0F14] border border-[#232A36] text-white',
+        danger:  'border border-red-500/40 text-red-400',
+      }[variant];
+      return (
+        <button
+          onClick={onClick}
+          disabled={disabled}
+          className={`px-4 py-2.5 rounded-lg transition-transform duration-200 active:scale-95 disabled:opacity-40 disabled:active:scale-100 ${v} ${className}`}
+        >
+          {children}
+        </button>
+      );
+    };
+
+    const Select = ({ value, onChange, options, suffix = '', label, compact = false }) => {
+      const id = useMemo(uid, []);
+      const numeric = typeof options[0] === 'number';
+      return (
+        <div className="w-full">
+          {label && <label htmlFor={id} className="text-[10px] uppercase tracking-widest text-gray-500 mb-1 block">{label}</label>}
+          <div className="relative">
+            <select
+              id={id}
+              value={value}
+              onChange={e => onChange(numeric ? Number(e.target.value) : e.target.value)}
+              className={`w-full bg-[#0B0F14] border border-[#232A36] rounded-lg pr-8 text-white outline-none focus:border-[#00FF88] transition-colors ${compact ? 'px-2 py-1.5 text-sm' : 'px-3 py-2.5'}`}
+            >
+              {options.map(o => (
+                <option key={o} value={o}>{o}{suffix}</option>
+              ))}
+            </select>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#00FF88] pointer-events-none text-xs">▾</span>
+          </div>
+        </div>
+      );
+    };
+
+    const Stat = ({ label, value, unit, accent = false }) => (
+      <Card className="p-4">
+        <p className="text-[10px] uppercase tracking-widest text-gray-500">{label}</p>
+        <p className={`text-2xl font-black mt-1 ${accent ? 'text-[#00FF88]' : 'text-white'}`}>
+          {value}
+          {unit && <span className="text-xs text-gray-500 ml-1 font-normal">{unit}</span>}
+        </p>
+      </Card>
+    );
+
+    const Modal = ({ open, onClose, title, children }) => {
+      if (!open) return null;
+      return (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm fade-in" onClick={onClose}>
+          <div className="bg-[#1A1F29] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-[#232A36] p-5 slide-up max-h-[85vh] overflow-y-auto scroll" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-bold text-white">{title}</h3>
+              <button onClick={onClose} className="text-gray-500 hover:text-white text-xl leading-none">×</button>
+            </div>
+            {children}
+          </div>
+        </div>
+      );
+    };
+
+    // SVG Icons (flat 2D, vectorial)
+    const Icon = ({ name, size = 22, stroke = 'currentColor' }) => {
+      const props = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
+      const paths = {
+        dashboard: <><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></>,
+        plus:      <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
+        play:      <polygon points="6 4 20 12 6 20 6 4"/>,
+        timer:     <><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/></>,
+        calc:      <><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="8" y2="15"/><line x1="12" y1="15" x2="12" y2="15"/><line x1="16" y1="15" x2="16" y2="15"/><line x1="8" y1="19" x2="16" y2="19"/></>,
+        trash:     <><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></>,
+        check:     <polyline points="20 6 9 17 4 12"/>,
+        flame:     <path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3 2-4-1 4 3 4 3 7 0-3 3-4 3-7 0-3-2-5-3-7z"/>,
+      };
+      return <svg {...props}>{paths[name]}</svg>;
+    };
+
+    // ─────────────────────────────────────────────────────────
+    // MODULE: DASHBOARD
+    // ─────────────────────────────────────────────────────────
+    const Dashboard = ({ state }) => {
+      const totalVol  = state.progress.reduce((a, p) => a + p.volume, 0);
+      const fatigue   = fatigueLevel(totalVol);
+      const sessions  = state.workouts.length;
+      const lastVol   = state.workouts[0] ? sessionVolume(state.workouts[0].sets) : 0;
+      const best1RM   = useMemo(() => {
+        let best = 0;
+        state.workouts.forEach(w => w.sets.forEach(s => {
+          const r = calc1RM(s.weight, s.reps);
+          if (r > best) best = r;
+        }));
+        return best;
+      }, [state.workouts]);
+
+      // Per-exercise progress (last 6 sessions of most recent exercise)
+      const perExercise = useMemo(() => {
+        if (!state.workouts.length) return [];
+        const name = state.workouts[0].exerciseName;
+        return state.workouts
+          .filter(w => w.exerciseName === name)
+          .slice(0, 6)
+          .reverse()
+          .map((w, i) => ({ name: `S${i+1}`, vol: sessionVolume(w.sets) }));
+      }, [state.workouts]);
+
+      return (
+        <div className="space-y-5 fade-in">
+          <header className="flex justify-between items-end">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-gray-500">{state.user.name}</p>
+              <h1 className="text-2xl font-black tracking-tight">Dashboard</h1>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] uppercase tracking-widest text-gray-500">Fatiga</p>
+              <p className="font-bold" style={{ color: fatigue.color }}>{fatigue.label}</p>
+            </div>
+          </header>
+
+          {/* Fatigue bar */}
+          <Card className="p-4">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-[10px] uppercase tracking-widest text-gray-500">Volumen total semanal</p>
+              <p className="text-sm font-bold">{totalVol.toLocaleString()} kg</p>
+            </div>
+            <div className="h-2 bg-[#0B0F14] rounded-full overflow-hidden">
+              <div className="h-full transition-all duration-300 rounded-full" style={{ width: `${fatigue.pct}%`, background: fatigue.color }} />
+            </div>
+          </Card>
+
+          {/* Weekly volume chart */}
+          <Card className="p-4 h-64">
+            <p className="text-[10px] uppercase tracking-widest text-[#00FF88] mb-3">Volumen semanal (kg)</p>
+            <ResponsiveContainer width="100%" height="85%">
+              <LineChart data={state.progress}>
+                <XAxis dataKey="date" stroke="#4B5563" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="#4B5563" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: '#0B0F14', border: '1px solid #232A36', borderRadius: 8, fontSize: 12 }} cursor={{ stroke: '#00FF88', strokeDasharray: '4 4' }} />
+                <Line type="monotone" dataKey="volume" stroke={ACCENT} strokeWidth={2.5} dot={{ fill: ACCENT, r: 3 }} activeDot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </Card>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <Stat label="1RM Máx" value={best1RM ? best1RM.toFixed(1) : '—'} unit="kg" accent />
+            <Stat label="Sesiones" value={sessions} />
+            <Stat label="Último Vol" value={lastVol.toLocaleString()} unit="kg" />
+            <Stat label="Rutinas" value={state.routines.length} />
+          </div>
+
+          {/* Per-exercise chart (only if logged) */}
+          {perExercise.length > 0 && (
+            <Card className="p-4 h-56">
+              <p className="text-[10px] uppercase tracking-widest text-[#00FF88] mb-3">Progreso · {state.workouts[0].exerciseName}</p>
+              <ResponsiveContainer width="100%" height="80%">
+                <BarChart data={perExercise}>
+                  <XAxis dataKey="name" stroke="#4B5563" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#4B5563" fontSize={10} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: '#0B0F14', border: '1px solid #232A36', borderRadius: 8, fontSize: 12 }} cursor={{ fill: 'rgba(0,255,136,0.06)' }} />
+                  <Bar dataKey="vol" fill={ACCENT} radius={[4,4,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+        </div>
+      );
+    };
+
+    // ─────────────────────────────────────────────────────────
+    // MODULE: ROUTINE BUILDER
+    // ─────────────────────────────────────────────────────────
+    const ExerciseRow = ({ ex, routineId, dispatch }) => {
+      const [expanded, setExpanded] = useState(false);
+      const update = (patch) => dispatch({ type: 'UPDATE_EXERCISE', routineId, id: ex.id, patch });
+      const volume = ex.sets * ex.reps * ex.weight;
+
+      return (
+        <Card accent className="overflow-hidden">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="w-full p-4 flex justify-between items-center text-left"
+          >
+            <div className="min-w-0">
+              <p className="font-bold truncate">{ex.name}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {ex.group} · {ex.equipment} · {ex.sets}×{ex.reps} @ {ex.weight}kg
+              </p>
+            </div>
+            <span className={`text-[#00FF88] transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>▾</span>
+          </button>
+
+          {expanded && (
+            <div className="px-4 pb-4 pt-1 space-y-3 fade-in">
+              <div className="grid grid-cols-3 gap-2">
+                <Select label="Series"  value={ex.sets}   onChange={v => update({ sets: v })}   options={SETS_OPTS}   compact />
+                <Select label="Reps"    value={ex.reps}   onChange={v => update({ reps: v })}   options={REPS_OPTS}   compact />
+                <Select label="Peso"    value={ex.weight} onChange={v => update({ weight: v })} options={WEIGHT_OPTS} suffix="kg" compact />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Select label="Grupo"     value={ex.group}     onChange={v => update({ group: v })}     options={MUSCLE_GROUPS} compact />
+                <Select label="Equipo"    value={ex.equipment} onChange={v => update({ equipment: v })} options={EQUIPMENT}     compact />
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-[#232A36]">
+                <p className="text-xs text-gray-500">Vol: <span className="text-[#00FF88] font-bold">{volume}kg</span></p>
+                <button onClick={() => dispatch({ type: 'DELETE_EXERCISE', routineId, id: ex.id })} className="text-red-400 text-xs flex items-center gap-1">
+                  <Icon name="trash" size={14} /> Eliminar
+                </button>
+              </div>
+            </div>
+          )}
+        </Card>
+      );
+    };
+
+    const AddExerciseForm = ({ routineId, dispatch, onDone }) => {
+      const [form, setForm] = useState({
+        name: '', group: MUSCLE_GROUPS[0], equipment: EQUIPMENT[0],
+        sets: 4, reps: 10, weight: 20,
+      });
+      const [namePreset, setNamePreset] = useState('Bench Press');
+      const PRESETS = ['Bench Press','Sentadilla','Peso Muerto','Press Militar','Dominadas','Remo','Curl Bíceps','Fondos','Hip Thrust','Personalizado'];
+      const [customName, setCustomName] = useState('');
+
+      const submit = () => {
+        const finalName = namePreset === 'Personalizado' ? customName.trim() : namePreset;
+        if (!finalName) return;
+        dispatch({ type: 'ADD_EXERCISE', routineId, exercise: { ...form, name: finalName } });
+        onDone();
+      };
+
+      return (
+        <div className="space-y-3">
+          <Select label="Ejercicio" value={namePreset} onChange={setNamePreset} options={PRESETS} />
+          {namePreset === 'Personalizado' && (
+            <input
+              autoFocus
+              value={customName}
+              onChange={e => setCustomName(e.target.value)}
+              placeholder="Nombre del ejercicio"
+              className="w-full bg-[#0B0F14] border border-[#232A36] rounded-lg px-3 py-2.5 text-white outline-none focus:border-[#00FF88]"
+            />
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Grupo"     value={form.group}     onChange={v => setForm({ ...form, group: v })}     options={MUSCLE_GROUPS} />
+            <Select label="Equipo"    value={form.equipment} onChange={v => setForm({ ...form, equipment: v })} options={EQUIPMENT} />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <Select label="Series" value={form.sets}   onChange={v => setForm({ ...form, sets: v })}   options={SETS_OPTS}   />
+            <Select label="Reps"   value={form.reps}   onChange={v => setForm({ ...form, reps: v })}   options={REPS_OPTS}   />
+            <Select label="Peso"   value={form.weight} onChange={v => setForm({ ...form, weight: v })} options={WEIGHT_OPTS} suffix="kg" />
+          </div>
+          <Btn onClick={submit} className="w-full">Añadir ejercicio</Btn>
+        </div>
+      );
+    };
+
+    const RoutineBuilder = ({ state, dispatch }) => {
+      const [activeRoutineId, setActiveRoutineId] = useState(state.routines[0]?.id);
+      const [showAdd, setShowAdd] = useState(false);
+      const [showNewRoutine, setShowNewRoutine] = useState(false);
+      const [newRoutineName, setNewRoutineName] = useState('');
+
+      const active = state.routines.find(r => r.id === activeRoutineId);
+      const grouped = useMemo(() => {
+        if (!active) return {};
+        return active.exercises.reduce((acc, e) => {
+          acc[e.group] = acc[e.group] || [];
+          acc[e.group].push(e);
+          return acc;
+        }, {});
+      }, [active]);
+
+      const totalVol = active ? active.exercises.reduce((a,e) => a + e.sets*e.reps*e.weight, 0) : 0;
+
+      return (
+        <div className="space-y-4 fade-in">
+          <header className="flex justify-between items-center">
+            <h1 className="text-2xl font-black tracking-tight">Rutinas</h1>
+            <Btn variant="ghost" onClick={() => setShowNewRoutine(true)} className="text-sm py-2 px-3">
+              <span className="flex items-center gap-1"><Icon name="plus" size={14} /> Rutina</span>
+            </Btn>
+          </header>
+
+          {/* Routine tabs */}
+          <div className="flex gap-2 overflow-x-auto scroll pb-1">
+            {state.routines.map(r => (
+              <button
+                key={r.id}
+                onClick={() => setActiveRoutineId(r.id)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap border transition-colors ${
+                  r.id === activeRoutineId
+                    ? 'bg-[#00FF88] text-[#0B0F14] border-[#00FF88]'
+                    : 'bg-[#1A1F29] border-[#232A36] text-gray-400'
+                }`}
+              >
+                {r.name}
+              </button>
+            ))}
+          </div>
+
+          {active ? (
+            <>
+              <Card className="p-4 flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500">Volumen planificado</p>
+                  <p className="text-xl font-black text-[#00FF88]">{totalVol.toLocaleString()}<span className="text-xs text-gray-500 ml-1">kg</span></p>
+                </div>
+                <p className="text-xs text-gray-500">{active.exercises.length} ejercicios</p>
+              </Card>
+
+              {Object.entries(grouped).map(([group, exs]) => (
+                <div key={group} className="space-y-2">
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 px-1">{group}</p>
+                  {exs.map(ex => <ExerciseRow key={ex.id} ex={ex} routineId={active.id} dispatch={dispatch} />)}
+                </div>
+              ))}
+
+              <Btn variant="ghost" onClick={() => setShowAdd(true)} className="w-full">
+                <span className="flex items-center justify-center gap-2"><Icon name="plus" size={16} /> Añadir ejercicio</span>
+              </Btn>
+
+              {state.routines.length > 1 && (
+                <button
+                  onClick={() => { dispatch({ type: 'DELETE_ROUTINE', id: active.id }); setActiveRoutineId(state.routines.find(r => r.id !== active.id)?.id); }}
+                  className="w-full text-xs text-red-400/70 py-2"
+                >
+                  Eliminar rutina
+                </button>
+              )}
+            </>
+          ) : (
+            <Card className="p-6 text-center text-gray-500 text-sm">No hay rutinas. Crea la primera.</Card>
+          )}
+
+          <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Nuevo ejercicio">
+            <AddExerciseForm routineId={active?.id} dispatch={dispatch} onDone={() => setShowAdd(false)} />
+          </Modal>
+
+          <Modal open={showNewRoutine} onClose={() => setShowNewRoutine(false)} title="Nueva rutina">
+            <div className="space-y-3">
+              <input
+                autoFocus
+                value={newRoutineName}
+                onChange={e => setNewRoutineName(e.target.value)}
+                placeholder="Ej: Leg Day"
+                className="w-full bg-[#0B0F14] border border-[#232A36] rounded-lg px-3 py-2.5 text-white outline-none focus:border-[#00FF88]"
+              />
+              <Btn className="w-full" onClick={() => {
+                const name = newRoutineName.trim();
+                if (!name) return;
+                const id = uid();
+                dispatch({ type: 'ADD_ROUTINE', name });
+                setNewRoutineName('');
+                setShowNewRoutine(false);
+                setTimeout(() => setActiveRoutineId(prev => state.routines.length ? prev : id), 0);
+              }}>Crear</Btn>
+            </div>
+          </Modal>
+        </div>
+      );
+    };
+
+    // ─────────────────────────────────────────────────────────
+    // MODULE: SESSION LOGGER
+    // ─────────────────────────────────────────────────────────
+    const RestTimer = () => {
+      const [duration, setDuration] = useState(90);
+      const [remaining, setRemaining] = useState(90);
+      const [running, setRunning]     = useState(false);
+      const tick = useRef(null);
+
+      useEffect(() => {
+        if (running) {
+          tick.current = setInterval(() => {
+            setRemaining(r => {
+              if (r <= 1) { setRunning(false); return 0; }
+              return r - 1;
+            });
+          }, 1000);
+        }
+        return () => clearInterval(tick.current);
+      }, [running]);
+
+      useEffect(() => { if (!running) setRemaining(duration); }, [duration]);
+
+      const mm = String(Math.floor(remaining/60)).padStart(2,'0');
+      const ss = String(remaining%60).padStart(2,'0');
+      const pct = duration ? (remaining / duration) * 100 : 0;
+
+      return (
+        <Card className="p-5">
+          <div className="flex justify-between items-center mb-4">
+            <p className="text-[10px] uppercase tracking-widest text-[#00FF88]">Descanso</p>
+            <div className="w-28">
+              <Select value={duration} onChange={v => { setRunning(false); setDuration(v); }} options={REST_OPTS} suffix="s" compact />
+            </div>
+          </div>
+          <div className="text-center my-4">
+            <p className="text-5xl font-black tabular-nums" style={{ color: remaining === 0 ? ACCENT : '#fff' }}>{mm}:{ss}</p>
+          </div>
+          <div className="h-1.5 bg-[#0B0F14] rounded-full overflow-hidden mb-4">
+            <div className="h-full bg-[#00FF88] transition-all duration-300" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <Btn variant={running ? 'ghost' : 'primary'} onClick={() => setRunning(!running)}>
+              {running ? 'Pausa' : 'Start'}
+            </Btn>
+            <Btn variant="flat" onClick={() => { setRunning(false); setRemaining(duration); }}>Reset</Btn>
+            <Btn variant="flat" onClick={() => setRemaining(r => r + 30)}>+30s</Btn>
+          </div>
+        </Card>
+      );
+    };
+
+    // Custom Select para el exercise picker (mostrar nombres aunque value sea id)
+    const ExerciseSelect = ({ value, onChange, exercises, label }) => {
+      const id = useMemo(uid, []);
+      return (
+        <div className="w-full">
+          {label && <label htmlFor={id} className="text-[10px] uppercase tracking-widest text-gray-500 mb-1 block">{label}</label>}
+          <div className="relative">
+            <select id={id} value={value} onChange={e => onChange(e.target.value)}
+              className="w-full bg-[#0B0F14] border border-[#232A36] rounded-lg px-3 py-2.5 pr-8 text-white outline-none focus:border-[#00FF88]">
+              {exercises.map(e => <option key={e.id} value={e.id}>{e.name} — {e.routineName}</option>)}
+            </select>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#00FF88] pointer-events-none text-xs">▾</span>
+          </div>
+        </div>
+      );
+    };
+
+    const SessionLogger = ({ state, dispatch }) => {
+      const allExercises = useMemo(() =>
+        state.routines.flatMap(r => r.exercises.map(e => ({ ...e, routineName: r.name }))),
+      [state.routines]);
+
+      const [exerciseId, setExerciseId] = useState(allExercises[0]?.id || '');
+      const exercise = allExercises.find(e => e.id === exerciseId) || allExercises[0];
+
+      const [setsLog, setSetsLog] = useState([]);
+      const [curWeight, setCurWeight] = useState(exercise?.weight ?? 20);
+      const [curReps, setCurReps]     = useState(exercise?.reps ?? 8);
+
+      useEffect(() => {
+        if (exercise) {
+          setCurWeight(exercise.weight);
+          setCurReps(exercise.reps);
+          setSetsLog([]);
+        }
+      }, [exerciseId]);
+
+      if (!exercise) {
+        return (
+          <Card className="p-6 text-center text-sm text-gray-500 fade-in">
+            Crea ejercicios en Rutinas para empezar a registrar.
+          </Card>
+        );
+      }
+
+      const completeSet = () => setSetsLog(prev => [...prev, { weight: curWeight, reps: curReps, ts: Date.now() }]);
+      const finishSession = () => {
+        if (setsLog.length === 0) return;
+        dispatch({ type: 'LOG_SESSION', exerciseId: exercise.id, exerciseName: exercise.name, sets: setsLog });
+        setSetsLog([]);
+      };
+
+      const totalVol = sessionVolume(setsLog);
+
+      return (
+        <div className="space-y-4 fade-in">
+          <header>
+            <h1 className="text-2xl font-black tracking-tight">Sesión</h1>
+            <p className="text-xs text-gray-500 mt-1">Registra series en tiempo real</p>
+          </header>
+
+          <ExerciseSelect label="Ejercicio" value={exerciseId} onChange={setExerciseId} exercises={allExercises} />
+          <p className="text-xs text-gray-500 -mt-2">
+            {exercise.group} · {exercise.equipment} · objetivo {exercise.sets}×{exercise.reps} @ {exercise.weight}kg
+          </p>
+
+          <Card className="p-4 space-y-3">
+            <p className="text-[10px] uppercase tracking-widest text-[#00FF88]">Serie {setsLog.length + 1} / {exercise.sets}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Select label="Peso" value={curWeight} onChange={setCurWeight} options={WEIGHT_OPTS} suffix="kg" />
+              <Select label="Reps" value={curReps}   onChange={setCurReps}   options={REPS_OPTS} />
+            </div>
+            <Btn onClick={completeSet} className="w-full">
+              <span className="flex items-center justify-center gap-2"><Icon name="check" size={16} /> Completar serie</span>
+            </Btn>
+          </Card>
+
+          {setsLog.length > 0 && (
+            <Card className="p-4">
+              <div className="flex justify-between items-center mb-3">
+                <p className="text-[10px] uppercase tracking-widest text-gray-500">Series completadas</p>
+                <p className="text-xs">Vol: <span className="text-[#00FF88] font-bold">{totalVol}kg</span></p>
+              </div>
+              <div className="space-y-1.5">
+                {setsLog.map((s, i) => (
+                  <div key={i} className="flex justify-between text-sm py-1.5 px-2 bg-[#0B0F14] rounded">
+                    <span className="text-gray-500">#{i+1}</span>
+                    <span className="font-bold">{s.weight}kg × {s.reps}</span>
+                    <span className="text-[#00FF88]">{s.weight*s.reps}</span>
+                  </div>
+                ))}
+              </div>
+              <Btn variant="ghost" onClick={finishSession} className="w-full mt-4">Finalizar sesión</Btn>
+            </Card>
+          )}
+
+          <RestTimer />
+        </div>
+      );
+    };
+
+    // ─────────────────────────────────────────────────────────
+    // MODULE: CALCULATOR
+    // ─────────────────────────────────────────────────────────
+    const Calculator = () => {
+      const [weight, setWeight] = useState(80);
+      const [reps,   setReps]   = useState(5);
+      const oneRM = useMemo(() => calc1RM(weight, reps), [weight, reps]);
+      const rpe   = useMemo(() => estimateRPE(weight, reps, oneRM), [weight, reps, oneRM]);
+
+      const PERCENTS = [60, 65, 70, 75, 80, 85, 90, 95, 100];
+
+      return (
+        <div className="space-y-4 fade-in">
+          <header>
+            <h1 className="text-2xl font-black tracking-tight">Calculadora</h1>
+            <p className="text-xs text-gray-500 mt-1">1RM · % cargas · RPE</p>
+          </header>
+
+          <Card className="p-5 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Select label="Peso levantado" value={weight} onChange={setWeight} options={WEIGHT_OPTS} suffix="kg" />
+              <Select label="Reps realizadas" value={reps} onChange={setReps} options={REPS_OPTS} />
+            </div>
+
+            <div className="bg-[#0B0F14] border border-[#232A36] rounded-lg p-5 text-center">
+              <p className="text-[10px] uppercase tracking-widest text-gray-500">1RM estimado</p>
+              <p className="text-5xl font-black text-[#00FF88] mt-1">{oneRM.toFixed(1)}<span className="text-base text-gray-500 ml-1 font-normal">kg</span></p>
+              {rpe !== null && (
+                <p className="text-xs text-gray-500 mt-2">RPE aprox · <span className="text-white font-bold">{rpe}/10</span></p>
+              )}
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <p className="text-[10px] uppercase tracking-widest text-[#00FF88] mb-3">% de cargas</p>
+            <div className="space-y-1.5">
+              {PERCENTS.map(p => {
+                const w = oneRM * p/100;
+                const r = repsAt(w, oneRM);
+                return (
+                  <div key={p} className="flex justify-between items-center py-2 px-3 bg-[#0B0F14] rounded text-sm">
+                    <span className="text-gray-500 w-12">{p}%</span>
+                    <span className="font-bold flex-1 text-center">{w.toFixed(1)}kg</span>
+                    <span className="text-xs text-gray-500 w-20 text-right">~{Math.max(1, Math.round(r))} reps</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      );
+    };
+
+    // ─────────────────────────────────────────────────────────
+    // SHELL: TABS + BOTTOM NAV
+    // ─────────────────────────────────────────────────────────
+    const TABS = [
+      { id: 'dashboard', icon: 'dashboard', label: 'Panel'      },
+      { id: 'builder',   icon: 'plus',      label: 'Rutinas'    },
+      { id: 'logger',    icon: 'play',      label: 'Sesión'     },
+      { id: 'calc',      icon: 'calc',      label: 'Calc'       },
+    ];
+
+    const App = () => {
+      const [state, dispatch] = useReducer(reducer, undefined, loadState);
+      const [tab, setTab] = useState('dashboard');
+
+      // Auto-persist
+      useEffect(() => {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+      }, [state]);
+
+      return (
+        <div className="max-w-md mx-auto min-h-screen flex flex-col">
+          <main className="flex-1 px-4 pt-6 pb-28">
+            {tab === 'dashboard' && <Dashboard      state={state} />}
+            {tab === 'builder'   && <RoutineBuilder state={state} dispatch={dispatch} />}
+            {tab === 'logger'    && <SessionLogger state={state} dispatch={dispatch} />}
+            {tab === 'calc'      && <Calculator />}
+          </main>
+
+          <nav className="fixed bottom-0 left-0 right-0 z-40">
+            <div className="max-w-md mx-auto bg-[#1A1F29] border-t border-[#232A36] px-2 py-2 flex justify-around">
+              {TABS.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors duration-200 ${
+                    tab === t.id ? 'text-[#00FF88]' : 'text-gray-500'
+                  }`}
+                >
+                  <Icon name={t.icon} size={20} />
+                  <span className="text-[10px] uppercase tracking-widest">{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </nav>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
