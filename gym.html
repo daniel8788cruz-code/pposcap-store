@@ -10,8 +10,6 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
-
   <style>
     :root {
       --bg: #0B0F14;
@@ -44,19 +42,18 @@
   <div id="root"></div>
 
   <script type="text/babel" data-presets="env,react">
-    const { useState, useEffect, useReducer, useMemo, useRef, useCallback } = React;
-    const { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } = Recharts;
+    const { useState, useEffect, useReducer, useMemo, useRef } = React;
 
     // ─────────────────────────────────────────────────────────
     // CONSTANTS
     // ─────────────────────────────────────────────────────────
-    const STORAGE_KEY = 'gym_system_v1';
+    const STORAGE_KEY = 'gym_system_v2';
     const ACCENT = '#00FF88';
 
     const MUSCLE_GROUPS = ['Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Pierna', 'Core', 'Glúteo'];
     const EQUIPMENT     = ['Barra', 'Mancuerna', 'Máquina', 'Polea', 'Peso libre'];
     const SETS_OPTS     = [1,2,3,4,5,6,7,8,9,10];
-    const REPS_OPTS     = [1,2,3,4,5,6,7,8,10,12,15,20,25,30];
+    const REPS_OPTS     = [1,2,3,4,5,6,7,8,10,12,15,20,21,25,30,45,60,90];
     const WEIGHT_OPTS   = [0,2.5,5,7.5,10,12.5,15,17.5,20,22.5,25,27.5,30,32.5,35,40,45,50,55,60,65,70,75,80,85,90,95,100,110,120,130,140,150,160,180,200];
     const REST_OPTS     = [30,45,60,90,120,180,240,300];
 
@@ -92,35 +89,94 @@
     // ─────────────────────────────────────────────────────────
     // STATE: REDUCER + LOCALSTORAGE PERSISTENCE
     // ─────────────────────────────────────────────────────────
+    // Hipertrofia Split — 7 días. dayIndex usa convención JS: 0=Dom, 1=Lun, ..., 6=Sáb
     const SEED = {
-      user: { name: 'Atleta' },
+      user: { name: 'Atleta', objetivo: 'Hipertrofia' },
       routines: [
         {
-          id: 'r1', name: 'Push Day',
+          id: 'r-mon', dayIndex: 1, name: 'Lunes', focus: 'Pecho y Tríceps',
           exercises: [
-            { id: 'e1', name: 'Bench Press',   group: 'Pecho',    equipment: 'Barra',     sets: 4, reps: 8,  weight: 60 },
-            { id: 'e2', name: 'Press Militar', group: 'Hombros',  equipment: 'Barra',     sets: 4, reps: 10, weight: 40 },
-            { id: 'e3', name: 'Tríceps Polea', group: 'Tríceps',  equipment: 'Polea',     sets: 3, reps: 12, weight: 25 },
+            { id: 'e-mon-1', name: 'Press de banca con barra',         group: 'Pecho',   equipment: 'Barra',      sets: 4, reps: 8,  weight: 60,   repsLabel: '8-10' },
+            { id: 'e-mon-2', name: 'Press inclinado con mancuernas',   group: 'Pecho',   equipment: 'Mancuerna',  sets: 4, reps: 10, weight: 22.5 },
+            { id: 'e-mon-3', name: 'Aperturas en máquina Peck Deck',   group: 'Pecho',   equipment: 'Máquina',    sets: 3, reps: 12, weight: 30   },
+            { id: 'e-mon-4', name: 'Fondos en paralelas',              group: 'Tríceps', equipment: 'Peso libre', sets: 3, reps: 10, weight: 0,    repsLabel: 'Al fallo' },
+            { id: 'e-mon-5', name: 'Press francés con barra EZ',       group: 'Tríceps', equipment: 'Barra',      sets: 4, reps: 10, weight: 20   },
+            { id: 'e-mon-6', name: 'Extensiones tríceps polea cuerda', group: 'Tríceps', equipment: 'Polea',      sets: 4, reps: 12, weight: 25   },
+            { id: 'e-mon-7', name: 'Patada tríceps con mancuerna',     group: 'Tríceps', equipment: 'Mancuerna',  sets: 3, reps: 12, weight: 7.5  },
           ]
         },
         {
-          id: 'r2', name: 'Pull Day',
+          id: 'r-tue', dayIndex: 2, name: 'Martes', focus: 'Espalda y Bíceps',
           exercises: [
-            { id: 'e4', name: 'Dominadas',     group: 'Espalda',  equipment: 'Peso libre', sets: 4, reps: 8,  weight: 0  },
-            { id: 'e5', name: 'Remo Mancuerna',group: 'Espalda',  equipment: 'Mancuerna',  sets: 4, reps: 10, weight: 22.5 },
-            { id: 'e6', name: 'Curl Bíceps',   group: 'Bíceps',   equipment: 'Mancuerna',  sets: 4, reps: 12, weight: 15 },
+            { id: 'e-tue-1', name: 'Dominadas',           group: 'Espalda', equipment: 'Peso libre', sets: 4, reps: 8,  weight: 0,    repsLabel: 'Al fallo' },
+            { id: 'e-tue-2', name: 'Remo con barra',      group: 'Espalda', equipment: 'Barra',      sets: 4, reps: 8,  weight: 50,   repsLabel: '8-10' },
+            { id: 'e-tue-3', name: 'Jalón al pecho',      group: 'Espalda', equipment: 'Polea',      sets: 4, reps: 10, weight: 50   },
+            { id: 'e-tue-4', name: 'Remo sentado polea',  group: 'Espalda', equipment: 'Polea',      sets: 4, reps: 10, weight: 45   },
+            { id: 'e-tue-5', name: 'Curl con barra recta',group: 'Bíceps',  equipment: 'Barra',      sets: 4, reps: 10, weight: 25   },
+            { id: 'e-tue-6', name: 'Curl martillo',       group: 'Bíceps',  equipment: 'Mancuerna',  sets: 3, reps: 12, weight: 12.5 },
+            { id: 'e-tue-7', name: 'Curl de predicador',  group: 'Bíceps',  equipment: 'Máquina',    sets: 3, reps: 12, weight: 20   },
           ]
-        }
+        },
+        {
+          id: 'r-wed', dayIndex: 3, name: 'Miércoles', focus: 'Pierna · Cuádriceps',
+          exercises: [
+            { id: 'e-wed-1', name: 'Sentadilla con barra',          group: 'Pierna', equipment: 'Barra',     sets: 4, reps: 8,  weight: 80   },
+            { id: 'e-wed-2', name: 'Prensa de piernas a 45 grados', group: 'Pierna', equipment: 'Máquina',   sets: 4, reps: 10, weight: 120  },
+            { id: 'e-wed-3', name: 'Sentadilla búlgara',            group: 'Pierna', equipment: 'Mancuerna', sets: 3, reps: 10, weight: 15,   repsLabel: '10 / pierna' },
+            { id: 'e-wed-4', name: 'Extensión piernas en máquina',  group: 'Pierna', equipment: 'Máquina',   sets: 4, reps: 12, weight: 35   },
+            { id: 'e-wed-5', name: 'Zancadas caminando mancuernas', group: 'Pierna', equipment: 'Mancuerna', sets: 3, reps: 12, weight: 12.5, repsLabel: '12 / pierna' },
+          ]
+        },
+        {
+          id: 'r-thu', dayIndex: 4, name: 'Jueves', focus: 'Hombros',
+          exercises: [
+            { id: 'e-thu-1', name: 'Press militar con barra',        group: 'Hombros', equipment: 'Barra',      sets: 4, reps: 8,  weight: 40,  repsLabel: '8-10' },
+            { id: 'e-thu-2', name: 'Press Arnold con mancuernas',    group: 'Hombros', equipment: 'Mancuerna',  sets: 4, reps: 10, weight: 15  },
+            { id: 'e-thu-3', name: 'Elevaciones laterales',          group: 'Hombros', equipment: 'Mancuerna',  sets: 4, reps: 12, weight: 7.5 },
+            { id: 'e-thu-4', name: 'Elevaciones frontales con disco',group: 'Hombros', equipment: 'Peso libre', sets: 3, reps: 12, weight: 10  },
+            { id: 'e-thu-5', name: 'Pájaros invertidos',             group: 'Hombros', equipment: 'Mancuerna',  sets: 4, reps: 12, weight: 7.5 },
+            { id: 'e-thu-6', name: 'Encogimientos de trapecio barra',group: 'Hombros', equipment: 'Barra',      sets: 4, reps: 15, weight: 50  },
+          ]
+        },
+        {
+          id: 'r-fri', dayIndex: 5, name: 'Viernes', focus: 'Pierna · Femoral / Glúteos',
+          exercises: [
+            { id: 'e-fri-1', name: 'Peso muerto rumano',         group: 'Pierna',  equipment: 'Barra',   sets: 4, reps: 8,  weight: 70 },
+            { id: 'e-fri-2', name: 'Hip Thrust con barra',       group: 'Glúteo',  equipment: 'Barra',   sets: 4, reps: 10, weight: 80 },
+            { id: 'e-fri-3', name: 'Curl femoral acostado',      group: 'Pierna',  equipment: 'Máquina', sets: 4, reps: 12, weight: 30 },
+            { id: 'e-fri-4', name: 'Buenos días',                group: 'Pierna',  equipment: 'Barra',   sets: 3, reps: 10, weight: 30 },
+            { id: 'e-fri-5', name: 'Elevación talones de pie',   group: 'Pierna',  equipment: 'Máquina', sets: 4, reps: 15, weight: 60 },
+            { id: 'e-fri-6', name: 'Elevación talones sentado',  group: 'Pierna',  equipment: 'Máquina', sets: 4, reps: 20, weight: 40 },
+          ]
+        },
+        {
+          id: 'r-sat', dayIndex: 6, name: 'Sábado', focus: 'Brazos y Core',
+          exercises: [
+            { id: 'e-sat-1', name: "Curl con barra '21s'",          group: 'Bíceps',  equipment: 'Barra',      sets: 3, reps: 21, weight: 15, repsLabel: '21s' },
+            { id: 'e-sat-2', name: 'Curl concentrado',              group: 'Bíceps',  equipment: 'Mancuerna',  sets: 3, reps: 12, weight: 10 },
+            { id: 'e-sat-3', name: 'Press banca agarre cerrado',    group: 'Tríceps', equipment: 'Barra',      sets: 4, reps: 10, weight: 40 },
+            { id: 'e-sat-4', name: 'Extensión tríceps tras nuca',   group: 'Tríceps', equipment: 'Mancuerna',  sets: 3, reps: 12, weight: 12.5 },
+            { id: 'e-sat-5', name: 'Plancha frontal',               group: 'Core',    equipment: 'Peso libre', sets: 4, reps: 60, weight: 0,  repsLabel: '60 seg' },
+            { id: 'e-sat-6', name: 'Encogimiento abdominal polea',  group: 'Core',    equipment: 'Polea',      sets: 4, reps: 15, weight: 25 },
+            { id: 'e-sat-7', name: 'Elevación de piernas colgado',  group: 'Core',    equipment: 'Peso libre', sets: 4, reps: 15, weight: 0  },
+          ]
+        },
+        {
+          id: 'r-sun', dayIndex: 0, name: 'Domingo', focus: 'Recuperación activa',
+          exercises: [
+            { id: 'e-sun-1', name: 'Cardio ligero o caminata', group: 'Core', equipment: 'Peso libre', sets: 1, reps: 30, weight: 0, repsLabel: '30-45 min' },
+          ]
+        },
       ],
       workouts: [],
       progress: [
-        { date: 'Lun', volume: 1200 },
-        { date: 'Mar', volume: 2100 },
-        { date: 'Mié', volume: 1800 },
-        { date: 'Jue', volume: 2400 },
-        { date: 'Vie', volume: 3100 },
-        { date: 'Sáb', volume: 0    },
-        { date: 'Dom', volume: 0    },
+        { date: 'Lun', volume: 0 },
+        { date: 'Mar', volume: 0 },
+        { date: 'Mié', volume: 0 },
+        { date: 'Jue', volume: 0 },
+        { date: 'Vie', volume: 0 },
+        { date: 'Sáb', volume: 0 },
+        { date: 'Dom', volume: 0 },
       ],
     };
 
@@ -277,90 +333,86 @@
     };
 
     // ─────────────────────────────────────────────────────────
-    // MODULE: DASHBOARD
+    // MODULE: TODAY PANEL (Dashboard simplificado: solo el día de hoy)
     // ─────────────────────────────────────────────────────────
-    const Dashboard = ({ state }) => {
-      const totalVol  = state.progress.reduce((a, p) => a + p.volume, 0);
-      const fatigue   = fatigueLevel(totalVol);
-      const sessions  = state.workouts.length;
-      const lastVol   = state.workouts[0] ? sessionVolume(state.workouts[0].sets) : 0;
-      const best1RM   = useMemo(() => {
-        let best = 0;
-        state.workouts.forEach(w => w.sets.forEach(s => {
-          const r = calc1RM(s.weight, s.reps);
-          if (r > best) best = r;
-        }));
-        return best;
-      }, [state.workouts]);
+    const DAY_NAMES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 
-      // Per-exercise progress (last 6 sessions of most recent exercise)
-      const perExercise = useMemo(() => {
-        if (!state.workouts.length) return [];
-        const name = state.workouts[0].exerciseName;
-        return state.workouts
-          .filter(w => w.exerciseName === name)
-          .slice(0, 6)
-          .reverse()
-          .map((w, i) => ({ name: `S${i+1}`, vol: sessionVolume(w.sets) }));
-      }, [state.workouts]);
+    const TodayPanel = ({ state, setTab }) => {
+      const dayIndex = new Date().getDay();
+      const todayName = DAY_NAMES[dayIndex];
+      const routine = state.routines.find(r => r.dayIndex === dayIndex);
+
+      const totalVol = state.progress.reduce((a, p) => a + p.volume, 0);
+      const fatigue  = fatigueLevel(totalVol);
+
+      const todayPlannedVol = routine
+        ? routine.exercises.reduce((a, e) => a + (e.sets * e.reps * e.weight), 0)
+        : 0;
 
       return (
         <div className="space-y-5 fade-in">
-          <header className="flex justify-between items-end">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-gray-500">{state.user.name}</p>
-              <h1 className="text-2xl font-black tracking-tight">Dashboard</h1>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] uppercase tracking-widest text-gray-500">Fatiga</p>
-              <p className="font-bold" style={{ color: fatigue.color }}>{fatigue.label}</p>
-            </div>
+          <header>
+            <p className="text-[10px] uppercase tracking-widest text-gray-500">Hipertrofia Split · Hoy</p>
+            <h1 className="text-3xl font-black tracking-tight mt-1">{todayName}</h1>
+            {routine && (
+              <p className="text-sm text-[#00FF88] font-bold mt-1">{routine.focus}</p>
+            )}
           </header>
 
-          {/* Fatigue bar */}
+          {/* Fatigue strip — único dato global, requisito de la spec */}
           <Card className="p-4">
             <div className="flex justify-between items-center mb-2">
-              <p className="text-[10px] uppercase tracking-widest text-gray-500">Volumen total semanal</p>
-              <p className="text-sm font-bold">{totalVol.toLocaleString()} kg</p>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500">Fatiga semanal</p>
+                <p className="text-sm font-bold" style={{ color: fatigue.color }}>{fatigue.label}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] uppercase tracking-widest text-gray-500">Volumen acumulado</p>
+                <p className="text-sm font-bold">{totalVol.toLocaleString()} kg</p>
+              </div>
             </div>
             <div className="h-2 bg-[#0B0F14] rounded-full overflow-hidden">
               <div className="h-full transition-all duration-300 rounded-full" style={{ width: `${fatigue.pct}%`, background: fatigue.color }} />
             </div>
           </Card>
 
-          {/* Weekly volume chart */}
-          <Card className="p-4 h-64">
-            <p className="text-[10px] uppercase tracking-widest text-[#00FF88] mb-3">Volumen semanal (kg)</p>
-            <ResponsiveContainer width="100%" height="85%">
-              <LineChart data={state.progress}>
-                <XAxis dataKey="date" stroke="#4B5563" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#4B5563" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#0B0F14', border: '1px solid #232A36', borderRadius: 8, fontSize: 12 }} cursor={{ stroke: '#00FF88', strokeDasharray: '4 4' }} />
-                <Line type="monotone" dataKey="volume" stroke={ACCENT} strokeWidth={2.5} dot={{ fill: ACCENT, r: 3 }} activeDot={{ r: 5 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Card>
+          {/* Today's plan */}
+          {routine && routine.exercises.length > 0 ? (
+            <>
+              <div className="flex justify-between items-end px-1">
+                <p className="text-[10px] uppercase tracking-widest text-[#00FF88]">Ejercicios de hoy</p>
+                <p className="text-[10px] text-gray-500">{routine.exercises.length} · vol plan {todayPlannedVol.toLocaleString()}kg</p>
+              </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-3">
-            <Stat label="1RM Máx" value={best1RM ? best1RM.toFixed(1) : '—'} unit="kg" accent />
-            <Stat label="Sesiones" value={sessions} />
-            <Stat label="Último Vol" value={lastVol.toLocaleString()} unit="kg" />
-            <Stat label="Rutinas" value={state.routines.length} />
-          </div>
+              <div className="space-y-2">
+                {routine.exercises.map((ex, i) => (
+                  <Card key={ex.id} accent className="p-4">
+                    <div className="flex justify-between items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] text-gray-500">#{i+1}</p>
+                        <p className="font-bold truncate">{ex.name}</p>
+                        <p className="text-xs text-gray-500 mt-0.5 truncate">
+                          {ex.group} · {ex.equipment}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] text-gray-500 uppercase">Series</p>
+                        <p className="font-bold text-[#00FF88]">{ex.sets} × {ex.repsLabel || ex.reps}</p>
+                        {ex.weight > 0 && <p className="text-[10px] text-gray-500">{ex.weight} kg</p>}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
 
-          {/* Per-exercise chart (only if logged) */}
-          {perExercise.length > 0 && (
-            <Card className="p-4 h-56">
-              <p className="text-[10px] uppercase tracking-widest text-[#00FF88] mb-3">Progreso · {state.workouts[0].exerciseName}</p>
-              <ResponsiveContainer width="100%" height="80%">
-                <BarChart data={perExercise}>
-                  <XAxis dataKey="name" stroke="#4B5563" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#4B5563" fontSize={10} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: '#0B0F14', border: '1px solid #232A36', borderRadius: 8, fontSize: 12 }} cursor={{ fill: 'rgba(0,255,136,0.06)' }} />
-                  <Bar dataKey="vol" fill={ACCENT} radius={[4,4,0,0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <Btn className="w-full" onClick={() => setTab('logger')}>
+                <span className="flex items-center justify-center gap-2"><Icon name="play" size={16} /> Empezar sesión</span>
+              </Btn>
+            </>
+          ) : (
+            <Card className="p-6 text-center">
+              <p className="text-sm text-gray-400">Sin ejercicios planificados para hoy.</p>
+              <p className="text-xs text-gray-500 mt-1">Disfruta el descanso.</p>
             </Card>
           )}
         </div>
@@ -384,7 +436,7 @@
             <div className="min-w-0">
               <p className="font-bold truncate">{ex.name}</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                {ex.group} · {ex.equipment} · {ex.sets}×{ex.reps} @ {ex.weight}kg
+                {ex.group} · {ex.equipment} · {ex.sets}×{ex.repsLabel || ex.reps}{ex.weight > 0 ? ` @ ${ex.weight}kg` : ''}
               </p>
             </div>
             <span className={`text-[#00FF88] transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>▾</span>
@@ -771,15 +823,15 @@
     // SHELL: TABS + BOTTOM NAV
     // ─────────────────────────────────────────────────────────
     const TABS = [
-      { id: 'dashboard', icon: 'dashboard', label: 'Panel'      },
-      { id: 'builder',   icon: 'plus',      label: 'Rutinas'    },
-      { id: 'logger',    icon: 'play',      label: 'Sesión'     },
-      { id: 'calc',      icon: 'calc',      label: 'Calc'       },
+      { id: 'today',   icon: 'dashboard', label: 'Hoy'      },
+      { id: 'builder', icon: 'plus',      label: 'Rutinas'  },
+      { id: 'logger',  icon: 'play',      label: 'Sesión'   },
+      { id: 'calc',    icon: 'calc',      label: 'Calc'     },
     ];
 
     const App = () => {
       const [state, dispatch] = useReducer(reducer, undefined, loadState);
-      const [tab, setTab] = useState('dashboard');
+      const [tab, setTab] = useState('today');
 
       // Auto-persist
       useEffect(() => {
@@ -789,10 +841,10 @@
       return (
         <div className="max-w-md mx-auto min-h-screen flex flex-col">
           <main className="flex-1 px-4 pt-6 pb-28">
-            {tab === 'dashboard' && <Dashboard      state={state} />}
-            {tab === 'builder'   && <RoutineBuilder state={state} dispatch={dispatch} />}
-            {tab === 'logger'    && <SessionLogger state={state} dispatch={dispatch} />}
-            {tab === 'calc'      && <Calculator />}
+            {tab === 'today'   && <TodayPanel     state={state} setTab={setTab} />}
+            {tab === 'builder' && <RoutineBuilder state={state} dispatch={dispatch} />}
+            {tab === 'logger'  && <SessionLogger  state={state} dispatch={dispatch} />}
+            {tab === 'calc'    && <Calculator />}
           </main>
 
           <nav className="fixed bottom-0 left-0 right-0 z-40">
