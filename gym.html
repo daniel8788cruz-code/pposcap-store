@@ -479,7 +479,7 @@
           >
             {/* Luffy character image */}
             <img
-              src={LUFFY_IMAGES[(pairIdx * 2 + (isLeft ? 0 : 1)) % LUFFY_IMAGES.length]}
+              src={LUFFY_IMAGES[(idx - 1) % LUFFY_IMAGES.length]}
               alt="Luffy"
               className="absolute bottom-0 pointer-events-none"
               style={{
