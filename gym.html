@@ -73,6 +73,14 @@
     const WEIGHT_OPTS   = [0,2.5,5,7.5,10,12.5,15,17.5,20,22.5,25,27.5,30,32.5,35,40,45,50,55,60,65,70,75,80,85,90,95,100,110,120,130,140,150,160,180,200];
     const REST_OPTS     = [30,45,60,90,120,180,240,300];
 
+    // Luffy character images from luffy/ folder (relative paths work on local & GitHub Pages)
+    const LUFFY_IMAGES = [
+      './luffy/luffy1.png',
+      './luffy/luffy2.png',
+      './luffy/luffy3.png',
+      './luffy/luffy4.png',
+    ];
+
     // ─────────────────────────────────────────────────────────
     // BUSINESS LOGIC
     // ─────────────────────────────────────────────────────────
@@ -469,8 +477,17 @@
               backgroundPosition: isLeft ? 'bottom right' : 'bottom left',
             }}
           >
-            {/* Placeholder para imagen — reemplazar con <img> cuando tengas las luffy */}
-            <div className={`w-32 h-32 rounded-full opacity-20 ${isLeft ? 'bg-[#0B0F14]' : 'bg-gray-600'}`} />
+            {/* Luffy character image */}
+            <img
+              src={LUFFY_IMAGES[(pairIdx * 2 + (isLeft ? 0 : 1)) % LUFFY_IMAGES.length]}
+              alt="Luffy"
+              className="absolute bottom-0 pointer-events-none"
+              style={{
+                [isLeft ? 'right' : 'left']: isLeft ? '-60px' : '-40px',
+                height: '95%',
+                objectFit: 'contain',
+              }}
+            />
           </div>
 
           {/* Número grande en esquina */}
