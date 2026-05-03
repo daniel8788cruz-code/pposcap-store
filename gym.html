@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>GymSystem — MVP</title>
-  <meta name="theme-color" content="#0B0F14" />
+  <meta name="theme-color" content="#0A1929" />
 
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -12,29 +12,43 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root {
-      --bg: #0B0F14;
-      --card: #1A1F29;
-      --line: #232A36;
-      --accent: #00FF88;
-      --text-2: #9CA3AF;
+      --bg:        #0A1929;
+      --bg-2:      #0E2236;
+      --card:      #15263D;
+      --card-2:    #1B3251;
+      --line:      #2A4264;
+      --cyan:      #4DD0E1;
+      --cyan-soft: #6EE0F1;
+      --orange:    #FF6B35;
+      --orange-2:  #E94E1B;
+      --text-1:    #FFFFFF;
+      --text-2:    #B0BEC5;
     }
-    html, body { background: var(--bg); color: #fff; }
-    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; min-height: 100vh; }
+    html, body { background: var(--bg); color: var(--text-1); }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      background-image: radial-gradient(ellipse at top, #0E2236 0%, #0A1929 60%);
+    }
 
-    /* Native select arrow off, custom caret added in JS */
     select { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
 
-    /* Smooth motion (200-300ms) */
     .fade-in { animation: fadeIn 220ms ease-out both; }
     .slide-up { animation: slideUp 240ms ease-out both; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
     .scroll::-webkit-scrollbar { width: 4px; }
-    .scroll::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 8px; }
+    .scroll::-webkit-scrollbar-thumb { background: var(--cyan); border-radius: 8px; }
 
-    /* Disable iOS tap highlight */
     button, [role="button"] { -webkit-tap-highlight-color: transparent; }
+
+    /* Glow utilities matching reference cyan accent */
+    .glow-cyan { box-shadow: 0 0 0 1px rgba(77,208,225,0.35), 0 0 24px rgba(77,208,225,0.08); }
+    .glow-orange { box-shadow: 0 0 0 1px rgba(255,107,53,0.4), 0 0 18px rgba(255,107,53,0.15); }
+    .text-cyan { color: var(--cyan); }
+    .bg-cyan-soft { background: rgba(77,208,225,0.08); }
+    .border-cyan { border-color: var(--cyan); }
   </style>
 </head>
 
@@ -47,8 +61,10 @@
     // ─────────────────────────────────────────────────────────
     // CONSTANTS
     // ─────────────────────────────────────────────────────────
-    const STORAGE_KEY = 'gym_system_v2';
-    const ACCENT = '#00FF88';
+    const STORAGE_KEY = 'gym_system_v3';
+    const ACCENT = '#4DD0E1';   // cyan
+    const ORANGE = '#FF6B35';
+    const todayKey = () => new Date().toISOString().slice(0, 10);
 
     const MUSCLE_GROUPS = ['Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Pierna', 'Core', 'Glúteo'];
     const EQUIPMENT     = ['Barra', 'Mancuerna', 'Máquina', 'Polea', 'Peso libre'];
@@ -81,7 +97,7 @@
     const fatigueLevel = (totalWeeklyVolume) => {
       if (totalWeeklyVolume < 2000)  return { label: 'Bajo',       color: '#FACC15', pct: 33 };
       if (totalWeeklyVolume <= 5000) return { label: 'Óptimo',     color: ACCENT,    pct: 66 };
-      return                              { label: 'Sobrecarga',  color: '#EF4444', pct: 100 };
+      return                              { label: 'Sobrecarga',  color: ORANGE,    pct: 100 };
     };
 
     const uid = () => Math.random().toString(36).slice(2, 9);
@@ -95,6 +111,7 @@
       routines: [
         {
           id: 'r-mon', dayIndex: 1, name: 'Lunes', focus: 'Pecho y Tríceps',
+          objetivo: 'Maximizar tensión',
           exercises: [
             { id: 'e-mon-1', name: 'Press de banca con barra',         group: 'Pecho',   equipment: 'Barra',      sets: 4, reps: 8,  weight: 60,   repsLabel: '8-10' },
             { id: 'e-mon-2', name: 'Press inclinado con mancuernas',   group: 'Pecho',   equipment: 'Mancuerna',  sets: 4, reps: 10, weight: 22.5 },
@@ -107,6 +124,7 @@
         },
         {
           id: 'r-tue', dayIndex: 2, name: 'Martes', focus: 'Espalda y Bíceps',
+          objetivo: 'Contracción máxima y foco',
           exercises: [
             { id: 'e-tue-1', name: 'Dominadas',           group: 'Espalda', equipment: 'Peso libre', sets: 4, reps: 8,  weight: 0,    repsLabel: 'Al fallo' },
             { id: 'e-tue-2', name: 'Remo con barra',      group: 'Espalda', equipment: 'Barra',      sets: 4, reps: 8,  weight: 50,   repsLabel: '8-10' },
@@ -118,28 +136,31 @@
           ]
         },
         {
-          id: 'r-wed', dayIndex: 3, name: 'Miércoles', focus: 'Pierna · Cuádriceps',
+          id: 'r-wed', dayIndex: 3, name: 'Miércoles', focus: 'Pierna (Cuádriceps)',
+          objetivo: 'Enfoque en cuádriceps y fuerza',
           exercises: [
             { id: 'e-wed-1', name: 'Sentadilla con barra',          group: 'Pierna', equipment: 'Barra',     sets: 4, reps: 8,  weight: 80   },
-            { id: 'e-wed-2', name: 'Prensa de piernas a 45 grados', group: 'Pierna', equipment: 'Máquina',   sets: 4, reps: 10, weight: 120  },
+            { id: 'e-wed-2', name: 'Prensa de piernas',             group: 'Pierna', equipment: 'Máquina',   sets: 4, reps: 10, weight: 120  },
             { id: 'e-wed-3', name: 'Sentadilla búlgara',            group: 'Pierna', equipment: 'Mancuerna', sets: 3, reps: 10, weight: 15,   repsLabel: '10 / pierna' },
             { id: 'e-wed-4', name: 'Extensión piernas en máquina',  group: 'Pierna', equipment: 'Máquina',   sets: 4, reps: 12, weight: 35   },
-            { id: 'e-wed-5', name: 'Zancadas caminando mancuernas', group: 'Pierna', equipment: 'Mancuerna', sets: 3, reps: 12, weight: 12.5, repsLabel: '12 / pierna' },
+            { id: 'e-wed-5', name: 'Zancadas caminando',            group: 'Pierna', equipment: 'Mancuerna', sets: 3, reps: 12, weight: 12.5, repsLabel: '12 / pierna' },
           ]
         },
         {
           id: 'r-thu', dayIndex: 4, name: 'Jueves', focus: 'Hombros',
+          objetivo: 'Hipertrofia de hombros y trapecios',
           exercises: [
             { id: 'e-thu-1', name: 'Press militar con barra',        group: 'Hombros', equipment: 'Barra',      sets: 4, reps: 8,  weight: 40,  repsLabel: '8-10' },
             { id: 'e-thu-2', name: 'Press Arnold con mancuernas',    group: 'Hombros', equipment: 'Mancuerna',  sets: 4, reps: 10, weight: 15  },
             { id: 'e-thu-3', name: 'Elevaciones laterales',          group: 'Hombros', equipment: 'Mancuerna',  sets: 4, reps: 12, weight: 7.5 },
             { id: 'e-thu-4', name: 'Elevaciones frontales con disco',group: 'Hombros', equipment: 'Peso libre', sets: 3, reps: 12, weight: 10  },
             { id: 'e-thu-5', name: 'Pájaros invertidos',             group: 'Hombros', equipment: 'Mancuerna',  sets: 4, reps: 12, weight: 7.5 },
-            { id: 'e-thu-6', name: 'Encogimientos de trapecio barra',group: 'Hombros', equipment: 'Barra',      sets: 4, reps: 15, weight: 50  },
+            { id: 'e-thu-6', name: 'Encogimientos de trapecio',      group: 'Hombros', equipment: 'Barra',      sets: 4, reps: 15, weight: 50  },
           ]
         },
         {
-          id: 'r-fri', dayIndex: 5, name: 'Viernes', focus: 'Pierna · Femoral / Glúteos',
+          id: 'r-fri', dayIndex: 5, name: 'Viernes', focus: 'Pierna (Femoral/Glúteos)',
+          objetivo: 'Maximizar glúteos y femorales',
           exercises: [
             { id: 'e-fri-1', name: 'Peso muerto rumano',         group: 'Pierna',  equipment: 'Barra',   sets: 4, reps: 8,  weight: 70 },
             { id: 'e-fri-2', name: 'Hip Thrust con barra',       group: 'Glúteo',  equipment: 'Barra',   sets: 4, reps: 10, weight: 80 },
@@ -151,6 +172,7 @@
         },
         {
           id: 'r-sat', dayIndex: 6, name: 'Sábado', focus: 'Brazos y Core',
+          objetivo: 'Detalle en brazos y core estable',
           exercises: [
             { id: 'e-sat-1', name: "Curl con barra '21s'",          group: 'Bíceps',  equipment: 'Barra',      sets: 3, reps: 21, weight: 15, repsLabel: '21s' },
             { id: 'e-sat-2', name: 'Curl concentrado',              group: 'Bíceps',  equipment: 'Mancuerna',  sets: 3, reps: 12, weight: 10 },
@@ -163,12 +185,14 @@
         },
         {
           id: 'r-sun', dayIndex: 0, name: 'Domingo', focus: 'Recuperación activa',
+          objetivo: 'Movilidad y recuperación',
           exercises: [
             { id: 'e-sun-1', name: 'Cardio ligero o caminata', group: 'Core', equipment: 'Peso libre', sets: 1, reps: 30, weight: 0, repsLabel: '30-45 min' },
           ]
         },
       ],
       workouts: [],
+      dailyLog: {},   // { 'YYYY-MM-DD': { _notes: '', [exerciseId]: [w1,w2,w3,w4] } }
       progress: [
         { date: 'Lun', volume: 0 },
         { date: 'Mar', volume: 0 },
