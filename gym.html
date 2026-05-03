@@ -475,14 +475,22 @@
                 <p className="text-[10px] text-gray-500">{routine.exercises.length} · vol plan {todayPlannedVol.toLocaleString()}kg</p>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {routine.exercises.map((ex, i) => (
-                  <div key={ex.id} className="rounded-xl overflow-hidden border border-[#232A36] bg-[#1A1F29]">
-                    <div className="flex items-stretch">
-                      {/* Número con bloque diagonal */}
+                  <div
+                    key={ex.id}
+                    className="rounded-xl overflow-hidden border border-[#232A36]"
+                    style={{ position: 'relative', zIndex: routine.exercises.length - i }}
+                  >
+                    {/* clip-path en el bloque interior — toda la tarjeta se recorta diagonal */}
+                    <div
+                      className="bg-[#1A1F29] flex items-stretch"
+                      style={{ clipPath: 'polygon(0 0, 100% 0, 100% 76%, 0% 100%)', paddingBottom: '30px' }}
+                    >
+                      {/* Bloque verde — sin clip propio, vive dentro de la diagonal */}
                       <div
                         className="bg-[#00FF88] text-[#0B0F14] font-black text-2xl flex items-center justify-center shrink-0"
-                        style={{ width: '64px', clipPath: 'polygon(0 0, 100% 0, 62% 100%, 0 100%)' }}
+                        style={{ width: '64px' }}
                       >
                         {i + 1}
                       </div>
