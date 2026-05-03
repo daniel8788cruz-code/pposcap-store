@@ -73,12 +73,14 @@
     const WEIGHT_OPTS   = [0,2.5,5,7.5,10,12.5,15,17.5,20,22.5,25,27.5,30,32.5,35,40,45,50,55,60,65,70,75,80,85,90,95,100,110,120,130,140,150,160,180,200];
     const REST_OPTS     = [30,45,60,90,120,180,240,300];
 
-    // Luffy character images from luffy/ folder (relative paths work on local & GitHub Pages)
+    // Luffy character images from luffy/ folder
+    // Detect if on GitHub Pages (has /pposcap-store/) or local
+    const basePath = window.location.pathname.includes('/pposcap-store/') ? '/pposcap-store' : '';
     const LUFFY_IMAGES = [
-      './luffy/luffy1.png',
-      './luffy/luffy2.png',
-      './luffy/luffy3.png',
-      './luffy/luffy4.png',
+      `${basePath}/luffy/luffy1.png`,
+      `${basePath}/luffy/luffy2.png`,
+      `${basePath}/luffy/luffy3.png`,
+      `${basePath}/luffy/luffy4.png`,
     ];
 
     // ─────────────────────────────────────────────────────────
