@@ -479,7 +479,7 @@
               backgroundPosition: isLeft ? 'bottom right' : 'bottom left',
             }}
           >
-            {/* Luffy character image */}
+            {/* Luffy character image - forced visible */}
             <img
               src={LUFFY_IMAGES[(idx - 1) % LUFFY_IMAGES.length]}
               alt="Luffy"
@@ -488,6 +488,12 @@
                 [isLeft ? 'right' : 'left']: isLeft ? '-60px' : '-40px',
                 height: '95%',
                 objectFit: 'contain',
+                maxWidth: '150%',
+                zIndex: 10,
+              }}
+              onError={(e) => {
+                e.target.style.display = 'block';
+                e.target.style.backgroundColor = isLeft ? '#1B5E38' : '#f3f3f3';
               }}
             />
           </div>
