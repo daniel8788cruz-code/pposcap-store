@@ -440,6 +440,92 @@
         ? routine.exercises.reduce((a, e) => a + (e.sets * e.reps * e.weight), 0)
         : 0;
 
+      // Agrupar ejercicios en pares
+      const exercisePairs = routine ? Array.from({ length: Math.ceil(routine.exercises.length / 2) }, (_, i) => [
+        routine.exercises[i * 2],
+        routine.exercises[i * 2 + 1]
+      ]) : [];
+
+      const ExerciseCard = ({ ex, idx, isLeft }) => (
+        <div
+          className={`relative flex-1 flex flex-col justify-between p-5 overflow-hidden ${
+            isLeft ? 'bg-gradient-to-br from-[#2D8659] to-[#1B5E38]' : 'bg-white'
+          }`}
+          style={{
+            clipPath: isLeft
+              ? 'polygon(0 0, 100% 0, 82% 100%, 0% 100%)'
+              : 'polygon(18% 0, 100% 0, 100% 100%, 0% 100%)',
+          }}
+        >
+          {/* Imagen Luffy - posicionada absoluta */}
+          <div
+            className="absolute bottom-0 pointer-events-none"
+            style={{
+              [isLeft ? 'right' : 'left']: '-10px',
+              height: '85%',
+              opacity: 0.7,
+              backgroundSize: 'contain',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: isLeft ? 'bottom right' : 'bottom left',
+            }}
+          >
+            {/* Placeholder para imagen — reemplazar con <img> cuando tengas las luffy */}
+            <div className={`w-32 h-32 rounded-full opacity-20 ${isLeft ? 'bg-[#0B0F14]' : 'bg-gray-600'}`} />
+          </div>
+
+          {/* Número grande en esquina */}
+          <div
+            className={`font-black text-5xl ${isLeft ? 'text-white/90' : 'text-gray-800'} ${isLeft ? 'text-left' : 'text-right'} leading-none`}
+            style={{ textShadow: isLeft ? '0 2px 8px rgba(0,0,0,0.3)' : 'none' }}
+          >
+            {idx}
+          </div>
+
+          {/* Contenido — con z-index para sobreponer la imagen */}
+          <div className={`flex-1 flex flex-col justify-end relative z-10 ${isLeft ? 'text-white' : 'text-gray-900'}`}>
+            <p className={`font-black text-base leading-tight mb-2 ${isLeft ? 'text-white' : 'text-gray-900'}`}>{ex.name}</p>
+
+            {/* Chips grupo + equipo */}
+            <div className="flex gap-1.5 flex-wrap mb-3">
+              <span
+                className={`text-[10px] rounded-full px-2.5 py-1 uppercase tracking-wide font-bold ${
+                  isLeft ? 'bg-[#0B0F14]/40 text-white' : 'bg-gray-700/40 text-gray-900'
+                }`}
+              >
+                {ex.group}
+              </span>
+              <span
+                className={`text-[10px] rounded-full px-2.5 py-1 uppercase tracking-wide ${
+                  isLeft ? 'bg-white/20 text-white' : 'bg-gray-600/30 text-gray-800'
+                }`}
+              >
+                {ex.equipment}
+              </span>
+            </div>
+
+            {/* Stats en fila */}
+            <div className={`flex gap-3 text-xs font-bold ${isLeft ? 'text-white/80' : 'text-gray-700'}`}>
+              <div className="flex items-center gap-1">
+                <span className={`text-lg font-black ${isLeft ? 'text-white' : 'text-gray-900'}`}>{ex.sets}</span>
+                <span>×</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className={`text-lg font-black ${isLeft ? 'text-white' : 'text-gray-900'}`}>
+                  {ex.repsLabel || ex.reps}
+                </span>
+              </div>
+              {ex.weight > 0 && (
+                <div className="flex items-center gap-1">
+                  <span>@</span>
+                  <span className={`text-lg font-black ${isLeft ? 'text-white' : 'text-gray-900'}`}>{ex.weight}</span>
+                  <span className="text-[9px]">kg</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+
       return (
         <div className="space-y-5 fade-in">
           <header>
@@ -450,7 +536,7 @@
             )}
           </header>
 
-          {/* Fatigue strip — único dato global, requisito de la spec */}
+          {/* Fatigue strip */}
           <Card className="p-4">
             <div className="flex justify-between items-center mb-2">
               <div>
@@ -467,7 +553,7 @@
             </div>
           </Card>
 
-          {/* Today's plan */}
+          {/* Today's plan — Pares con diagonal */}
           {routine && routine.exercises.length > 0 ? (
             <>
               <div className="flex justify-between items-end px-1">
@@ -475,54 +561,18 @@
                 <p className="text-[10px] text-gray-500">{routine.exercises.length} · vol plan {todayPlannedVol.toLocaleString()}kg</p>
               </div>
 
-              <div className="space-y-1">
-                {routine.exercises.map((ex, i) => (
-                  <div
-                    key={ex.id}
-                    className="rounded-xl overflow-hidden border border-[#232A36]"
-                    style={{ position: 'relative', zIndex: routine.exercises.length - i }}
-                  >
-                    {/* clip-path en el bloque interior — toda la tarjeta se recorta diagonal */}
-                    <div
-                      className="bg-[#1A1F29] flex items-stretch"
-                      style={{ clipPath: 'polygon(0 0, 100% 0, 100% 76%, 0% 100%)', paddingBottom: '30px' }}
-                    >
-                      {/* Bloque verde — sin clip propio, vive dentro de la diagonal */}
-                      <div
-                        className="bg-[#00FF88] text-[#0B0F14] font-black text-2xl flex items-center justify-center shrink-0"
-                        style={{ width: '64px' }}
-                      >
-                        {i + 1}
-                      </div>
-                      {/* Contenido */}
-                      <div className="flex-1 p-3 space-y-2">
-                        <p className="font-bold text-white text-base leading-tight">{ex.name}</p>
-                        <div className="flex gap-2 flex-wrap">
-                          <span className="text-[10px] bg-[#00FF88]/10 text-[#00FF88] border border-[#00FF88]/30 rounded-full px-2.5 py-0.5 uppercase tracking-wide font-bold">{ex.group}</span>
-                          <span className="text-[10px] bg-white/5 text-gray-400 border border-white/10 rounded-full px-2.5 py-0.5 uppercase tracking-wide">{ex.equipment}</span>
-                        </div>
-                        <div className="flex items-end gap-3 pt-2 border-t border-[#232A36]/60">
-                          <div>
-                            <p className="text-[9px] uppercase tracking-widest text-gray-500">Series</p>
-                            <p className="font-black text-white text-xl leading-none">{ex.sets}</p>
-                          </div>
-                          <p className="text-gray-600 text-lg font-bold mb-0.5">×</p>
-                          <div>
-                            <p className="text-[9px] uppercase tracking-widest text-gray-500">Reps</p>
-                            <p className="font-black text-[#00FF88] text-xl leading-none">{ex.repsLabel || ex.reps}</p>
-                          </div>
-                          {ex.weight > 0 && (
-                            <>
-                              <p className="text-gray-600 text-lg font-bold mb-0.5">@</p>
-                              <div>
-                                <p className="text-[9px] uppercase tracking-widest text-gray-500">Peso</p>
-                                <p className="font-black text-white text-xl leading-none">{ex.weight}<span className="text-xs text-gray-500 font-normal ml-0.5">kg</span></p>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+              <div className="space-y-2">
+                {exercisePairs.map((pair, pairIdx) => (
+                  <div key={pairIdx} className="rounded-xl overflow-hidden border border-[#232A36] h-32 flex">
+                    {pair[0] && (
+                      <ExerciseCard ex={pair[0]} idx={pairIdx * 2 + 1} isLeft={true} />
+                    )}
+                    {pair[1] && (
+                      <ExerciseCard ex={pair[1]} idx={pairIdx * 2 + 2} isLeft={false} />
+                    )}
+                    {!pair[1] && pair[0] && (
+                      <div className="flex-1" />
+                    )}
                   </div>
                 ))}
               </div>
