@@ -117,6 +117,73 @@
       return                              { label: 'Sobrecarga',  color: ORANGE,    pct: 100 };
     };
 
+    // ─────────────────────────────────────────────────────────
+    // ADVANCED STATISTICS (Mean, StdDev, Trend, Confidence Ranges)
+    // ─────────────────────────────────────────────────────────
+    const calculateMean = (weights) => {
+      if (!weights || weights.length === 0) return 0;
+      return weights.reduce((a, b) => a + b, 0) / weights.length;
+    };
+
+    const calculateStdDev = (weights, mean = null) => {
+      if (!weights || weights.length < 2) return 0;
+      const m = mean !== null ? mean : calculateMean(weights);
+      const variance = weights.reduce((acc, w) => acc + Math.pow(w - m, 2), 0) / weights.length;
+      return Math.sqrt(variance);
+    };
+
+    const calculateTrend = (history) => {
+      if (!history || history.length < 2) return 0;
+      const data = history.map((h, i) => ({ x: i, y: h.weight }));
+      const n = data.length;
+      const sumX = data.reduce((a, d) => a + d.x, 0);
+      const sumY = data.reduce((a, d) => a + d.y, 0);
+      const sumXY = data.reduce((a, d) => a + (d.x * d.y), 0);
+      const sumX2 = data.reduce((a, d) => a + (d.x * d.x), 0);
+      const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+      return isNaN(slope) ? 0 : slope;
+    };
+
+    const calculateCoefficientOfVariation = (stdDev, mean) => {
+      return mean !== 0 ? (stdDev / mean) * 100 : 0;
+    };
+
+    const calculateNextWeight = (mean, stdDev, zScore = 2) => {
+      return parseFloat((mean + zScore * stdDev * 0.25).toFixed(2));
+    };
+
+    const getConfidenceRange = (mean, stdDev, zScore = 2) => {
+      const margin = zScore * stdDev;
+      return {
+        lower: parseFloat((mean - margin).toFixed(2)),
+        upper: parseFloat((mean + margin).toFixed(2))
+      };
+    };
+
+    const computeExerciseStats = (history) => {
+      if (!history || history.length === 0) return null;
+      const weights = history.map(h => h.weight);
+      const mean = calculateMean(weights);
+      const stdDev = calculateStdDev(weights, mean);
+      const coeffVar = calculateCoefficientOfVariation(stdDev, mean);
+      const trend = calculateTrend(history);
+      const range2σ = getConfidenceRange(mean, stdDev, 2);
+      const range3σ = getConfidenceRange(mean, stdDev, 3);
+      const nextWeight = calculateNextWeight(mean, stdDev, 2);
+
+      return {
+        mean: parseFloat(mean.toFixed(2)),
+        stdDev: parseFloat(stdDev.toFixed(2)),
+        coeffVar: parseFloat(coeffVar.toFixed(2)),
+        trend: parseFloat(trend.toFixed(2)),
+        range2σ,
+        range3σ,
+        nextWeight,
+        samples: weights.length,
+        confidence: '95% (2σ)'
+      };
+    };
+
     const uid = () => Math.random().toString(36).slice(2, 9);
 
     // ─────────────────────────────────────────────────────────
@@ -285,6 +352,7 @@
         { date: 'Sáb', volume: 0 },
         { date: 'Dom', volume: 0 },
       ],
+      exerciseStats: {}, // { [exerciseId]: { history: [...], stats: { mean, stdDev, trend, nextWeight, ... } } }
     };
 
     const loadState = () => {
@@ -339,6 +407,20 @@
             ...state,
             workouts: [{ id: uid(), date: new Date().toISOString(), exerciseId: action.exerciseId, exerciseName: action.exerciseName, sets: action.sets }, ...state.workouts].slice(0, 200),
             progress: state.progress.map(p => p.date === todayKey ? { ...p, volume: p.volume + vol } : p),
+          };
+        }
+        case 'UPDATE_EXERCISE_STATS': {
+          const { exerciseId, weight, reps, date } = action;
+          const existingStats = state.exerciseStats[exerciseId] || { history: [] };
+          const newEntry = { date: date || new Date().toISOString(), weight, reps, ts: Date.now() };
+          const newHistory = [...existingStats.history, newEntry];
+          const stats = computeExerciseStats(newHistory);
+          return {
+            ...state,
+            exerciseStats: {
+              ...state.exerciseStats,
+              [exerciseId]: { history: newHistory, stats }
+            }
           };
         }
         case 'RESET':
@@ -716,6 +798,8 @@
       const [showAdd, setShowAdd] = useState(false);
       const [showNewRoutine, setShowNewRoutine] = useState(false);
       const [newRoutineName, setNewRoutineName] = useState('');
+      const [tabMode, setTabMode] = useState('edit'); // 'edit' | 'progress'
+      const [selectedExerciseId, setSelectedExerciseId] = useState(null);
 
       const active = state.routines.find(r => r.id === activeRoutineId);
       const grouped = useMemo(() => {
@@ -728,6 +812,107 @@
       }, [active]);
 
       const totalVol = active ? active.exercises.reduce((a,e) => a + e.sets*e.reps*e.weight, 0) : 0;
+
+      // Button image paths for UI
+      const buttonImagen1 = `${basePath}/luffy/boton-luffy-inicio.png`;
+      const buttonImagen2 = `${basePath}/luffy/boton-luffy-zorro.png`;
+
+      // Get exercise stats and chart data
+      const renderProgressTab = (exerciseId) => {
+        const exercise = active?.exercises.find(e => e.id === exerciseId);
+        const stats = state.exerciseStats[exerciseId];
+
+        if (!stats || !stats.history || stats.history.length === 0) {
+          return (
+            <Card className="p-6 text-center text-gray-500 text-sm">
+              No hay historial de este ejercicio. Registra sesiones en la pestaña "Sesión".
+            </Card>
+          );
+        }
+
+        const history = stats.history.slice(-30); // Last 30 days
+        const minWeight = Math.min(...history.map(h => h.weight));
+        const maxWeight = Math.max(...history.map(h => h.weight));
+        const range = maxWeight - minWeight || 1;
+        const chartHeight = 120;
+        const chartWidth = 280;
+
+        // SVG Sparkline chart
+        const points = history.map((h, i) => {
+          const x = (i / (history.length - 1 || 1)) * chartWidth;
+          const y = chartHeight - ((h.weight - minWeight) / range) * chartHeight;
+          return `${x},${y}`;
+        }).join(' ');
+
+        const handleApplyWeight = () => {
+          dispatch({ type: 'UPDATE_EXERCISE', routineId: active.id, id: exerciseId, patch: { weight: stats.stats.nextWeight } });
+        };
+
+        return (
+          <div className="space-y-4">
+            {/* Chart */}
+            <Card className="p-4">
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-3">Progreso de peso (últimos 30 días)</p>
+              <svg width="100%" height="140" viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="bg-[#0B0F14] rounded">
+                <polyline points={points} fill="none" stroke="#4DD0E1" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                {history.map((h, i) => {
+                  const x = (i / (history.length - 1 || 1)) * chartWidth;
+                  const y = chartHeight - ((h.weight - minWeight) / range) * chartHeight;
+                  return <circle key={i} cx={x} cy={y} r="2" fill="#00FF88" />;
+                })}
+              </svg>
+            </Card>
+
+            {/* Stats Card */}
+            <Card className="p-4 space-y-2">
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <p className="text-gray-500 uppercase text-[10px]">Media</p>
+                  <p className="font-bold text-lg text-white">{stats.stats.mean.toFixed(1)}kg</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 uppercase text-[10px]">Desv. Est.</p>
+                  <p className="font-bold text-lg text-white">{stats.stats.stdDev.toFixed(2)}kg</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 uppercase text-[10px]">Coef. Var.</p>
+                  <p className="font-bold text-lg text-white">{stats.stats.coeffVar.toFixed(1)}%</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 uppercase text-[10px]">Tendencia</p>
+                  <p className={`font-bold text-lg ${stats.stats.trend > 0 ? 'text-[#00FF88]' : 'text-orange-500'}`}>
+                    {stats.stats.trend.toFixed(2)} kg/sem
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-[#232A36]">
+                <p className="text-gray-500 uppercase text-[10px] mb-2">Próximo peso recomendado</p>
+                <p className="text-3xl font-black text-[#00FF88] mb-3">{stats.stats.nextWeight}kg</p>
+                <Btn onClick={handleApplyWeight} className="w-full text-sm">
+                  Aplicar peso recomendado
+                </Btn>
+              </div>
+            </Card>
+
+            {/* Button Images - Decorative */}
+            <div className="flex gap-2">
+              <img
+                src={buttonImagen1}
+                alt="Boton Luffy Inicio"
+                className="h-16 object-contain rounded"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+              <img
+                src={buttonImagen2}
+                alt="Boton Luffy Zorro"
+                className="h-16 object-contain rounded"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            </div>
+          </div>
+        );
+      };
 
       return (
         <div className="space-y-4 fade-in">
@@ -757,32 +942,85 @@
 
           {active ? (
             <>
-              <Card className="p-4 flex justify-between items-center">
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500">Volumen planificado</p>
-                  <p className="text-xl font-black text-[#00FF88]">{totalVol.toLocaleString()}<span className="text-xs text-gray-500 ml-1">kg</span></p>
-                </div>
-                <p className="text-xs text-gray-500">{active.exercises.length} ejercicios</p>
-              </Card>
-
-              {Object.entries(grouped).map(([group, exs]) => (
-                <div key={group} className="space-y-2">
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 px-1">{group}</p>
-                  {exs.map(ex => <ExerciseRow key={ex.id} ex={ex} routineId={active.id} dispatch={dispatch} />)}
-                </div>
-              ))}
-
-              <Btn variant="ghost" onClick={() => setShowAdd(true)} className="w-full">
-                <span className="flex items-center justify-center gap-2"><Icon name="plus" size={16} /> Añadir ejercicio</span>
-              </Btn>
-
-              {state.routines.length > 1 && (
+              {/* Tab selector: Edit | Progress */}
+              <div className="flex gap-2 border-b border-[#232A36]">
                 <button
-                  onClick={() => { dispatch({ type: 'DELETE_ROUTINE', id: active.id }); setActiveRoutineId(state.routines.find(r => r.id !== active.id)?.id); }}
-                  className="w-full text-xs text-red-400/70 py-2"
+                  onClick={() => setTabMode('edit')}
+                  className={`px-3 py-2 text-xs font-bold uppercase transition-colors border-b-2 ${
+                    tabMode === 'edit'
+                      ? 'border-b-[#00FF88] text-[#00FF88]'
+                      : 'border-b-transparent text-gray-500'
+                  }`}
                 >
-                  Eliminar rutina
+                  Editar
                 </button>
+                <button
+                  onClick={() => setTabMode('progress')}
+                  className={`px-3 py-2 text-xs font-bold uppercase transition-colors border-b-2 ${
+                    tabMode === 'progress'
+                      ? 'border-b-[#00FF88] text-[#00FF88]'
+                      : 'border-b-transparent text-gray-500'
+                  }`}
+                >
+                  Progreso
+                </button>
+              </div>
+
+              {tabMode === 'edit' ? (
+                <>
+                  <Card className="p-4 flex justify-between items-center">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-gray-500">Volumen planificado</p>
+                      <p className="text-xl font-black text-[#00FF88]">{totalVol.toLocaleString()}<span className="text-xs text-gray-500 ml-1">kg</span></p>
+                    </div>
+                    <p className="text-xs text-gray-500">{active.exercises.length} ejercicios</p>
+                  </Card>
+
+                  {Object.entries(grouped).map(([group, exs]) => (
+                    <div key={group} className="space-y-2">
+                      <p className="text-[10px] uppercase tracking-widest text-gray-500 px-1">{group}</p>
+                      {exs.map(ex => <ExerciseRow key={ex.id} ex={ex} routineId={active.id} dispatch={dispatch} />)}
+                    </div>
+                  ))}
+
+                  <Btn variant="ghost" onClick={() => setShowAdd(true)} className="w-full">
+                    <span className="flex items-center justify-center gap-2"><Icon name="plus" size={16} /> Añadir ejercicio</span>
+                  </Btn>
+
+                  {state.routines.length > 1 && (
+                    <button
+                      onClick={() => { dispatch({ type: 'DELETE_ROUTINE', id: active.id }); setActiveRoutineId(state.routines.find(r => r.id !== active.id)?.id); }}
+                      className="w-full text-xs text-red-400/70 py-2"
+                    >
+                      Eliminar rutina
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Progress tab: Select exercise */}
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Selecciona un ejercicio</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {active.exercises.map(ex => (
+                        <button
+                          key={ex.id}
+                          onClick={() => setSelectedExerciseId(selectedExerciseId === ex.id ? null : ex.id)}
+                          className={`p-3 rounded-lg border text-left text-xs transition-colors ${
+                            selectedExerciseId === ex.id
+                              ? 'bg-[#00FF88] text-[#0B0F14] border-[#00FF88]'
+                              : 'bg-[#1A1F29] border-[#232A36] text-white'
+                          }`}
+                        >
+                          <p className="font-bold truncate">{ex.name}</p>
+                          <p className="text-[10px] mt-0.5">{ex.group}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {selectedExerciseId && renderProgressTab(selectedExerciseId)}
+                </>
               )}
             </>
           ) : (
@@ -918,6 +1156,9 @@
       const finishSession = () => {
         if (setsLog.length === 0) return;
         dispatch({ type: 'LOG_SESSION', exerciseId: exercise.id, exerciseName: exercise.name, sets: setsLog });
+        setsLog.forEach(set => {
+          dispatch({ type: 'UPDATE_EXERCISE_STATS', exerciseId: exercise.id, weight: set.weight, reps: set.reps });
+        });
         setSetsLog([]);
       };
 
@@ -962,6 +1203,32 @@
                 ))}
               </div>
               <Btn variant="ghost" onClick={finishSession} className="w-full mt-4">Finalizar sesión</Btn>
+            </Card>
+          )}
+
+          {state.exerciseStats[exercise?.id]?.history && (
+            <Card className="p-4">
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-3">Historial del ejercicio</p>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {state.exerciseStats[exercise.id].history.slice(-10).reverse().map((h, i) => {
+                  const orm = calc1RM(h.weight, h.reps);
+                  return (
+                    <div key={i} className="flex justify-between text-xs py-1 px-2 bg-[#0B0F14] rounded">
+                      <span className="text-gray-500">{new Date(h.date).toLocaleDateString()}</span>
+                      <span className="font-bold">{h.weight}kg × {h.reps}</span>
+                      <span className="text-[#00FF88]">1RM: {orm.toFixed(1)}kg</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {state.exerciseStats[exercise.id]?.stats && (
+                <div className="mt-3 pt-3 border-t border-[#232A36] text-xs space-y-1">
+                  <div className="flex justify-between"><span className="text-gray-500">Media:</span><span className="font-bold">{state.exerciseStats[exercise.id].stats.mean.toFixed(1)}kg</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Desv. Est.:</span><span className="font-bold">{state.exerciseStats[exercise.id].stats.stdDev.toFixed(2)}kg</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Próximo peso:</span><span className="text-[#00FF88] font-bold">{state.exerciseStats[exercise.id].stats.nextWeight}kg</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Tendencia:</span><span className={state.exerciseStats[exercise.id].stats.trend > 0 ? 'text-[#00FF88]' : 'text-orange-500'}>{state.exerciseStats[exercise.id].stats.trend.toFixed(2)} kg/sem</span></div>
+                </div>
+              )}
             </Card>
           )}
 
