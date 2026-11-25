@@ -416,7 +416,8 @@ body {
   <button class="tab-btn active" onclick="showTab('partidos')">Partidos</button>
   <button class="tab-btn" onclick="showTab('analisis')">Análisis</button>
   <button class="tab-btn" onclick="showTab('reto')">Reto 5/5</button>
-  <button class="tab-btn" onclick="showTab('extras')">Combinadas</button>
+  <button class="tab-btn" onclick="showTab('grandes')" style="color:var(--gold);font-weight:800">★ 60K/20K</button>
+  <button class="tab-btn" onclick="showTab('extras')">Extra</button>
   <button class="tab-btn" onclick="showTab('banca')">Banca</button>
 </nav>
 
@@ -430,6 +431,9 @@ body {
 
 <!-- ===================== RETO 5/5 ===================== -->
 <div class="pane" id="pane-reto"></div>
+
+<!-- ===================== GRANDES ===================== -->
+<div class="pane" id="pane-grandes"></div>
 
 <!-- ===================== COMBINADAS ===================== -->
 <div class="pane" id="pane-extras"></div>
@@ -577,40 +581,64 @@ const PRIN_PICKS = [
 ];
 
 // Picks adicionales usando todos los mercados disponibles
+// ══ COMBINADAS PRINCIPALES DEL DÍA (apuestas grandes) ══
+const BIG_BETS = [
+  {
+    id:'big1',
+    label:'COMBINADA A',
+    stake:60000,
+    target:616200,
+    color:'var(--gold)',
+    picks:[
+      {partido:'Sabah vs Barcelona',  bet:'+3.5 Goles',          odds:1.33},
+      {partido:'Brugge vs Liverpool', bet:'Liverpool Gana',       odds:1.66},
+      {partido:'Inter vs Stuttgart',  bet:'Inter Gana',           odds:1.44},
+      {partido:'Lille vs Bayern',     bet:'Bayern Gana',          odds:1.61},
+      {partido:'PSG vs Roma',         bet:'PSG Gana',             odds:1.52},
+      {partido:'PSG vs Roma',         bet:'Torres Mayor nº tiros (Opta)', odds:1.32},
+    ]
+  },
+  {
+    id:'big2',
+    label:'COMBINADA B',
+    stake:20000,
+    target:654400,
+    color:'var(--grn)',
+    picks:[
+      {partido:'Sabah vs Barcelona',  bet:'+3.5 Goles',          odds:1.33},
+      {partido:'Brugge vs Liverpool', bet:'Liverpool Gana',       odds:1.66},
+      {partido:'Inter vs Stuttgart',  bet:'Inter Gana',           odds:1.44},
+      {partido:'Lille vs Bayern',     bet:'Bayern Gana',          odds:1.61},
+      {partido:'PSG vs Roma',         bet:'PSG Gana',             odds:1.52},
+      {partido:'PSG vs Roma',         bet:'Torres Mayor nº tiros (Opta)', odds:1.32},
+      {partido:'PSG vs Roma',         bet:'Dembélé Anotará',     odds:1.81},
+      {partido:'PSG vs Roma',         bet:'Godts Anotará/Asistirá', odds:1.76},
+    ]
+  },
+];
+
 const EXTRA_PICKS = [
-  // Jugador / Prop bets — PSG vs Roma (datos de capturas)
   {id:'ex1', group:'jugadores', partido:'PSG vs Roma',
    bet:'Torres – Mayor nº tiros (Opta)', odds:1.32, stake:3000, risk:'low',
-   note:'Torres domina el ataque de PSG en casa. Dybala sin equipo defensivo sólido que lo ayude.'},
+   note:'Torres domina el ataque de PSG en casa.'},
   {id:'ex2', group:'jugadores', partido:'PSG vs Roma',
    bet:'Dembélé Anotará', odds:1.81, stake:2000, risk:'low',
-   note:'Dembélé es el principal finalizador del PSG. 1.81 tiene valor real para un partido en casa contra Roma.'},
+   note:'Principal finalizador del PSG. 1.81 tiene valor real.'},
   {id:'ex3', group:'jugadores', partido:'PSG vs Roma',
    bet:'Dembélé Anotará o Asistirá', odds:1.45, stake:3000, risk:'low',
-   note:'Participa en gol en más del 60% de los partidos en UCL. Cuota bajísima pero segura para stake alto.'},
-  // Combinadas de 2 selecciones
+   note:'Participa en gol en la mayoría de partidos UCL.'},
   {id:'ex4', group:'combinada2', partido:'Liverpool + Inter',
    bet:'Liverpool Gana × Inter Gana', odds:+(1.66*1.44).toFixed(2), stake:2000, risk:'low',
-   note:'Doble seguro. Ambos favoritos claros en casa. Cuota combinada ~2.39.'},
+   note:'Doble seguro. Ambos favoritos en casa.'},
   {id:'ex5', group:'combinada2', partido:'Bayern + PSG',
    bet:'Bayern Gana × PSG Gana', odds:+(1.61*1.52).toFixed(2), stake:2000, risk:'low',
-   note:'Dos grandes europeos en casa. Combinada ofrece retorno atractivo con riesgo controlado.'},
-  {id:'ex6', group:'combinada2', partido:'Torres tiros + Dembélé anota',
-   bet:'Torres más tiros × Dembélé Anotará', odds:+(1.32*1.81).toFixed(2), stake:2000, risk:'low',
-   note:'Doble de jugadores PSG dentro del mismo partido. Cuota ~2.39 con alta probabilidad.'},
-  // Combinada 3 selecciones
-  {id:'ex7', group:'combinada3', partido:'Liverpool + Bayern + PSG',
-   bet:'Liverpool × Bayern × PSG Ganan', odds:+(1.66*1.61*1.52).toFixed(2), stake:1500, risk:'medium',
-   note:'Triple de favoritos. Cuota ~4.06. Retorno $6.090 con stake $1.500.'},
-  {id:'ex8', group:'combinada3', partido:'Inter + Bayern + Dembélé anota',
-   bet:'Inter × Bayern × Dembélé Anotará', odds:+(1.44*1.61*1.81).toFixed(2), stake:1500, risk:'medium',
-   note:'Mezcla resultado+jugador. Cuota ~4.19. Si Inter, Bayern ganan y Dembélé marca.'},
+   note:'Dos grandes europeos en casa.'},
 ];
 
 // ═══════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════
-let STATE = { bk1:50000, bk2:50000, reto:{}, prin:{}, extra:{} };
+let STATE = { bk1:50000, bk2:50000, reto:{}, prin:{}, extra:{}, big:{} };
 try {
   const s = JSON.parse(localStorage.getItem('ucl_state_v1') || 'null');
   if(s) STATE = s;
@@ -650,7 +678,8 @@ function recalcBancas() {
   // Stakes already placed — start deducted, return on W
   const prinStakes = PRIN_PICKS.reduce((s,p)=>s+p.stake,0);
   const extraStakes = EXTRA_PICKS.filter(p=>STATE.extra[p.id]).reduce((s,p)=>s+p.stake,0);
-  let bk1 = 50000 - prinStakes - extraStakes;
+  const bigStakes = BIG_BETS.reduce((s,b)=>s+b.stake,0);
+  let bk1 = 50000 - prinStakes - extraStakes - bigStakes;
   for(const p of PRIN_PICKS) {
     const r = STATE.prin[p.matchId];
     if(r==='W') bk1 += p.stake*p.odds;
@@ -658,6 +687,11 @@ function recalcBancas() {
   for(const p of EXTRA_PICKS) {
     const r = STATE.extra[p.id];
     if(r==='W') bk1 += p.stake*p.odds;
+  }
+  for(const b of BIG_BETS) {
+    const r = STATE.big[b.id];
+    const combined = b.picks.reduce((a,p)=>a*p.odds,1);
+    if(r==='W') bk1 += b.stake*combined;
   }
   STATE.bk1 = Math.max(0, bk1);
 
@@ -1055,6 +1089,91 @@ function renderExtras() {
   container.innerHTML = html;
 }
 
+// ═══════════════════════════════════════════════════
+//  RENDER: GRANDES COMBINADAS 60K / 20K
+// ═══════════════════════════════════════════════════
+function renderGrandes() {
+  const container = document.getElementById('pane-grandes');
+  const totalPotencial = BIG_BETS.reduce((s,b)=>{
+    const odds = b.picks.reduce((a,p)=>a*p.odds,1);
+    return s + b.stake*odds;
+  },0);
+  const totalStake = BIG_BETS.reduce((s,b)=>s+b.stake,0);
+
+  let html = `
+    <div style="background:linear-gradient(135deg,#0B1532,#1A0A30);border:1px solid var(--gbrd);border-radius:12px;padding:16px;margin-bottom:16px;text-align:center">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:1.3rem;font-weight:800;color:var(--gold)">COMBINADAS DEL DÍA</div>
+      <div style="color:var(--t2);font-size:.82rem;margin-top:4px">Objetivo: más de $500.000 COP por apuesta</div>
+      <div style="display:flex;justify-content:center;gap:28px;margin-top:14px">
+        <div style="text-align:center">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:800">${fmt(totalStake)}</div>
+          <div style="font-size:.68rem;color:var(--t2)">Total apostado</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:800;color:var(--gold)">${fmt(totalPotencial)}</div>
+          <div style="font-size:.68rem;color:var(--t2)">Si AMBAS ganan</div>
+        </div>
+      </div>
+    </div>`;
+
+  for(const b of BIG_BETS) {
+    const combined = b.picks.reduce((a,p)=>a*p.odds,1);
+    const retorno = b.stake * combined;
+    const r = STATE.big[b.id];
+    html += `
+    <div style="background:var(--sfc);border:2px solid ${b.color === 'var(--gold)' ? 'var(--gbrd)' : 'rgba(16,185,129,.35)'};border-radius:12px;margin-bottom:16px;overflow:hidden">
+      <div style="background:${b.color === 'var(--gold)' ? 'var(--gsft)' : 'rgba(16,185,129,.08)'};padding:14px 16px;display:flex;align-items:center;gap:12px">
+        <div style="flex:1">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:1rem;font-weight:800;color:${b.color}">${b.label}</div>
+          <div style="font-size:.78rem;color:var(--t2);margin-top:2px">${b.picks.length} selecciones · Cuota ${combined.toFixed(2)}×</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:1.3rem;font-weight:800;color:${b.color}">${fmt(b.stake)}</div>
+          <div style="font-size:.7rem;color:var(--t2)">Stake</div>
+        </div>
+      </div>
+      <div style="padding:12px 16px">
+        ${b.picks.map((p,i)=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--brd)">
+          <span style="width:20px;height:20px;border-radius:50%;background:var(--sfc2);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800;color:var(--t2);flex-shrink:0">${i+1}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.7rem;color:var(--t3)">${p.partido}</div>
+            <div style="font-size:.82rem;font-weight:600">${p.bet}</div>
+          </div>
+          <span style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:.9rem;color:${b.color};flex-shrink:0">${p.odds.toFixed(2)}</span>
+        </div>`).join('')}
+        <div style="margin-top:12px;background:var(--sfc2);border-radius:8px;padding:12px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:.72rem;color:var(--t2)">Retorno si gana</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:800;color:${b.color}">${fmt(retorno)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:.72rem;color:var(--t2);margin-bottom:6px">Resultado</div>
+            <div style="display:flex;gap:6px">
+              <button class="rbtn win ${r==='W'?'active':''}" style="width:38px;height:38px;font-size:1.1rem" onclick="setBigResult('${b.id}','W')">✓</button>
+              <button class="rbtn loss ${r==='L'?'active':''}" style="width:38px;height:38px;font-size:1.1rem" onclick="setBigResult('${b.id}','L')">✗</button>
+            </div>
+          </div>
+        </div>
+        ${r ? `<div style="margin-top:8px;text-align:center;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1rem;color:${r==='W'?'var(--grn)':'var(--red)'}">
+          ${r==='W'?'🏆 GANASTE '+fmt(retorno-b.stake)+' de ganancia':'❌ PERDISTE '+fmt(b.stake)+' de stake'}
+        </div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function setBigResult(id, val) {
+  if(STATE.big[id]===val) delete STATE.big[id];
+  else STATE.big[id] = val;
+  recalcBancas();
+  saveState();
+  updateBancaDisplay();
+  renderPane('grandes');
+}
+
 function setExtraResult(id, val) {
   if(STATE.extra[id]===val) delete STATE.extra[id];
   else STATE.extra[id] = val;
@@ -1068,6 +1187,7 @@ function renderPane(tab) {
   if(tab==='partidos') renderPartidos();
   else if(tab==='analisis') renderAnalisis();
   else if(tab==='reto') renderReto();
+  else if(tab==='grandes') renderGrandes();
   else if(tab==='extras') renderExtras();
   else if(tab==='banca') renderBanca();
 }
@@ -1089,6 +1209,7 @@ updateBancaDisplay();
 renderPartidos();
 renderAnalisis();
 renderReto();
+renderGrandes();
 renderExtras();
 renderBanca();
 </script>
