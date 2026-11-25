@@ -638,7 +638,7 @@ const EXTRA_PICKS = [
 // ═══════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════
-let STATE = { bk1:50000, bk2:50000, reto:{}, prin:{}, extra:{}, big:{} };
+let STATE = { bk1:80000, bk2:0, reto:{}, prin:{}, extra:{}, big:{} };
 try {
   const s = JSON.parse(localStorage.getItem('ucl_state_v1') || 'null');
   if(s) STATE = s;
