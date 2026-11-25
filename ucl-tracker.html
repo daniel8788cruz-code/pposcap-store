@@ -714,12 +714,6 @@ function updateBancaDisplay() {
 // ═══════════════════════════════════════════════════
 //  TAB NAVIGATION
 // ═══════════════════════════════════════════════════
-function showTab(tab) {
-  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('pane-'+tab).classList.add('active');
-  event.currentTarget.classList.add('active');
-}
 
 // ═══════════════════════════════════════════════════
 //  RENDER: PARTIDOS
@@ -1023,7 +1017,7 @@ function setResult(type, matchId, val) {
 
 function resetState() {
   if(!confirm('¿Reiniciar todos los resultados?')) return;
-  STATE = {bk1:50000, bk2:50000, reto:{}, prin:{}};
+  STATE = {bk1:50000, bk2:50000, reto:{}, prin:{}, extra:{}, big:{}};
   saveState();
   updateBancaDisplay();
   renderPane('banca');
