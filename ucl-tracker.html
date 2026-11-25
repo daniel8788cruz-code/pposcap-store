@@ -607,16 +607,14 @@ function riskHtml(r) {
 
 // Recalculate bancas from scratch based on results
 function recalcBancas() {
-  // Principal: each win adds (stake*odds - stake), each loss deducts stake
-  let bk1 = 50000;
+  // Stakes already placed — start deducted, return on W
+  let bk1 = 50000 - PRIN_PICKS.reduce((s,p)=>s+p.stake,0);
   for(const p of PRIN_PICKS) {
     const r = STATE.prin[p.matchId];
-    if(r==='W') bk1 += p.stake*(p.odds-1);
-    else if(r==='L') bk1 -= p.stake;
+    if(r==='W') bk1 += p.stake*p.odds;
   }
   STATE.bk1 = Math.max(0, bk1);
 
-  // Reto: all win → 50000 + (RETO_STAKE*RETO_COMBINED - RETO_STAKE); any loss → 50000 - RETO_STAKE
   const wins = RETO_PICKS.filter(p=>STATE.reto[p.matchId]==='W').length;
   const losses = RETO_PICKS.filter(p=>STATE.reto[p.matchId]==='L').length;
   if(losses > 0) {
@@ -624,7 +622,7 @@ function recalcBancas() {
   } else if(wins === RETO_PICKS.length) {
     STATE.bk2 = 50000 - RETO_STAKE + RETO_STAKE * RETO_COMBINED;
   } else {
-    STATE.bk2 = 50000; // still pending
+    STATE.bk2 = 50000 - RETO_STAKE; // stake placed, pending
   }
 }
 
