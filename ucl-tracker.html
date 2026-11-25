@@ -1,0 +1,979 @@
+<title>UCL Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* === TOKENS — dark-first === */
+:root {
+  --bg:   #020A1C;
+  --bg2:  #05102A;
+  --sfc:  #0B1532;
+  --sfc2: #0F1E40;
+  --gold: #F5C518;
+  --gsft: rgba(245,197,24,.12);
+  --gbrd: rgba(245,197,24,.22);
+  --txt:  #fff;
+  --t2:   #8899B4;
+  --t3:   #4A5A7A;
+  --grn:  #10B981;
+  --red:  #EF4444;
+  --ylw:  #F59E0B;
+  --blu:  #3B82F6;
+  --brd:  rgba(255,255,255,.07);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #0D1B3E; --bg2: #102040; --sfc: #132050; --sfc2: #172860;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] { color-scheme: dark; }
+
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+body {
+  background: var(--bg);
+  color: var(--txt);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  padding-left: max(0px, env(safe-area-inset-left,0px));
+  padding-right: max(0px, env(safe-area-inset-right,0px));
+}
+
+/* === HEADER === */
+.site-header {
+  position: sticky;
+  top: env(safe-area-inset-top,0px);
+  z-index: 50;
+  background: rgba(2,10,28,.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--brd);
+  padding: 12px max(16px, env(safe-area-inset-left,0px));
+  display: flex; align-items: center; gap: 12px;
+}
+.site-header h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.1rem; font-weight: 700; letter-spacing: .02em;
+}
+.site-header h1 span { color: var(--gold); }
+.badge-ucl {
+  background: var(--gsft);
+  border: 1px solid var(--gbrd);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: .68rem; font-weight: 600;
+  color: var(--gold); letter-spacing: .08em;
+}
+.header-date { margin-left: auto; color: var(--t2); font-size: .78rem; }
+
+/* === BANCA BARS === */
+.banca-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px max(16px, env(safe-area-inset-left,0px));
+  background: var(--bg2);
+  border-bottom: 1px solid var(--brd);
+}
+.banca-card {
+  background: var(--sfc);
+  border: 1px solid var(--brd);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.banca-card.gold { border-color: var(--gbrd); background: var(--gsft); }
+.banca-label { font-size: .68rem; color: var(--t2); font-weight: 500; letter-spacing: .06em; text-transform: uppercase; }
+.banca-amount {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.25rem; font-weight: 800;
+  color: var(--gold); margin-top: 2px;
+}
+.banca-sub { font-size: .72rem; color: var(--t2); margin-top: 1px; }
+
+/* === TABS === */
+.tabs {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--brd);
+  background: var(--bg2);
+  padding: 0 max(16px, env(safe-area-inset-left,0px));
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex-shrink: 0;
+  background: none; border: none; cursor: pointer;
+  padding: 10px 16px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: .82rem; font-weight: 600;
+  color: var(--t2);
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+.tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+.tab-btn:hover:not(.active) { color: var(--txt); }
+
+/* === MAIN CONTENT === */
+.main { padding: 16px max(16px, env(safe-area-inset-left,0px)); max-width: 900px; margin: 0 auto; }
+.pane { display: none; }
+.pane.active { display: block; }
+
+/* === MATCH CARD === */
+.match-card {
+  background: var(--sfc);
+  border: 1px solid var(--brd);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.match-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--brd);
+  background: var(--bg2);
+}
+.match-time {
+  font-size: .72rem; color: var(--gold);
+  background: var(--gsft); border: 1px solid var(--gbrd);
+  border-radius: 5px; padding: 2px 6px; font-weight: 600;
+  flex-shrink: 0;
+}
+.match-teams {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: .95rem; font-weight: 700;
+  display: flex; align-items: center; gap: 8px;
+  flex: 1; min-width: 0;
+}
+.team-block { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.team-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vs-badge {
+  font-size: .65rem; color: var(--t3);
+  font-weight: 700; letter-spacing: .06em;
+  flex-shrink: 0;
+}
+.team-crest {
+  width: 26px; height: 26px; border-radius: 50%;
+  object-fit: contain; background: var(--sfc2);
+  flex-shrink: 0;
+}
+.crest-fallback {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: .6rem; font-weight: 800;
+  flex-shrink: 0; color: #fff;
+}
+
+/* 1X2 odds row */
+.odds-row {
+  display: flex; gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--brd);
+}
+.odd-btn {
+  flex: 1; background: var(--sfc2); border: 1px solid var(--brd);
+  border-radius: 7px; padding: 7px 4px;
+  cursor: pointer; transition: all .15s;
+  text-align: center;
+}
+.odd-btn:hover { border-color: var(--t2); }
+.odd-label { font-size: .62rem; color: var(--t2); font-weight: 500; display: block; }
+.odd-val { font-family: 'Space Grotesk', sans-serif; font-size: .95rem; font-weight: 700; display: block; }
+
+/* Markets accordion */
+.markets-toggle {
+  width: 100%; background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px;
+  color: var(--t2); font-size: .78rem; font-weight: 500;
+  transition: color .15s;
+}
+.markets-toggle:hover { color: var(--txt); }
+.markets-toggle .arrow { transition: transform .2s; }
+.markets-toggle.open .arrow { transform: rotate(180deg); }
+.markets-body { display: none; padding: 0 14px 10px; }
+.markets-body.open { display: block; }
+.market-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--brd);
+}
+.market-row:last-child { border: none; }
+.market-name { font-size: .78rem; color: var(--t2); flex: 1; min-width: 0; }
+.market-odds { display: flex; gap: 5px; flex-shrink: 0; }
+.mkt-opt {
+  background: var(--sfc2); border: 1px solid var(--brd);
+  border-radius: 5px; padding: 3px 8px; cursor: pointer;
+  font-size: .75rem; font-weight: 600; transition: all .15s;
+  white-space: nowrap;
+}
+.mkt-opt.hl { border-color: var(--gold); color: var(--gold); background: var(--gsft); }
+.mkt-opt:hover { border-color: var(--t2); }
+
+/* === RECOMMENDATION PILL === */
+.rec-block {
+  margin: 0 14px 12px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid;
+}
+.rec-block.low { border-color: rgba(16,185,129,.3); background: rgba(16,185,129,.06); }
+.rec-block.medium { border-color: rgba(245,158,11,.3); background: rgba(245,158,11,.06); }
+.rec-block.high { border-color: rgba(239,68,68,.3); background: rgba(239,68,68,.06); }
+.rec-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.rec-pick {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: .88rem; font-weight: 700;
+}
+.rec-odds {
+  margin-left: auto; font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem; font-weight: 800; color: var(--gold);
+}
+.risk-pill {
+  font-size: .62rem; font-weight: 700; border-radius: 4px;
+  padding: 2px 6px; letter-spacing: .06em;
+}
+.risk-low { background: rgba(16,185,129,.18); color: var(--grn); }
+.risk-medium { background: rgba(245,158,11,.18); color: var(--ylw); }
+.risk-high { background: rgba(239,68,68,.18); color: var(--red); }
+.rec-analysis { font-size: .78rem; color: var(--t2); line-height: 1.5; }
+
+/* === RETO 5/5 === */
+.reto-header {
+  background: linear-gradient(135deg, #0B1532, #1A1040);
+  border: 1px solid var(--gbrd);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.reto-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.3rem; font-weight: 800;
+  color: var(--gold);
+}
+.reto-subtitle { color: var(--t2); font-size: .82rem; margin-top: 4px; }
+.reto-math {
+  display: flex; align-items: center; justify-content: center; gap: 20px;
+  margin-top: 14px; flex-wrap: wrap;
+}
+.reto-stat { text-align: center; }
+.reto-stat-val {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.5rem; font-weight: 800; color: var(--txt);
+}
+.reto-stat-val.gold { color: var(--gold); }
+.reto-stat-lbl { font-size: .68rem; color: var(--t2); margin-top: 2px; }
+.reto-pick-card {
+  background: var(--sfc);
+  border: 1px solid var(--brd);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px;
+}
+.pick-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--gsft); border: 1px solid var(--gbrd);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: .78rem; font-weight: 800; color: var(--gold);
+  flex-shrink: 0;
+}
+.pick-info { flex: 1; min-width: 0; }
+.pick-teams { font-family: 'Space Grotesk', sans-serif; font-size: .9rem; font-weight: 700; }
+.pick-bet { font-size: .78rem; color: var(--t2); margin-top: 2px; }
+.pick-odds-val {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.1rem; font-weight: 800; color: var(--gold);
+  flex-shrink: 0;
+}
+.result-btns { display: flex; gap: 5px; flex-shrink: 0; }
+.rbtn {
+  width: 30px; height: 30px; border-radius: 6px;
+  border: 1px solid var(--brd);
+  background: var(--sfc2); cursor: pointer;
+  font-size: .85rem; transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.rbtn:hover { transform: scale(1.08); }
+.rbtn.win.active { background: rgba(16,185,129,.25); border-color: var(--grn); }
+.rbtn.loss.active { background: rgba(239,68,68,.25); border-color: var(--red); }
+.pick-status { font-size: .72rem; font-weight: 600; }
+.pick-status.win { color: var(--grn); }
+.pick-status.loss { color: var(--red); }
+.pick-status.pending { color: var(--t3); }
+
+/* === PRINCIPAL PICKS === */
+.prin-header {
+  background: linear-gradient(135deg, #0A1A0E, #0E2A18);
+  border: 1px solid rgba(16,185,129,.3);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.prin-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.1rem; font-weight: 800; color: var(--grn);
+}
+.prin-pick-card {
+  background: var(--sfc);
+  border: 1px solid var(--brd);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.prin-pick-top { display: flex; align-items: center; gap: 12px; }
+.prin-stake {
+  font-size: .72rem; color: var(--t2); margin-top: 4px;
+  display: flex; gap: 12px;
+}
+.stake-val { font-weight: 600; color: var(--txt); }
+.potential-val { font-weight: 600; color: var(--grn); }
+
+/* === BANCA DETAIL PAGE === */
+.banca-detail {
+  background: var(--sfc);
+  border: 1px solid var(--brd);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.banca-detail h3 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem; font-weight: 700; margin-bottom: 12px;
+}
+.banca-progress-bar {
+  height: 8px; border-radius: 4px;
+  background: var(--sfc2);
+  margin: 8px 0 4px;
+  overflow: hidden;
+}
+.banca-progress-fill {
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, var(--gold), #FFE066);
+  transition: width .4s ease;
+}
+.banca-nums {
+  display: flex; justify-content: space-between;
+  font-size: .75rem; color: var(--t2);
+}
+
+/* === ANALYSIS PAGE === */
+.analysis-card {
+  background: var(--sfc);
+  border: 1px solid var(--brd);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+.analysis-match {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: .95rem; font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+.analysis-text { font-size: .82rem; color: var(--t2); line-height: 1.6; }
+
+/* === SECTION LABEL === */
+.section-label {
+  font-size: .68rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--t3);
+  padding: 10px 0 6px;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 480px) {
+  .match-teams { font-size: .82rem; }
+  .reto-math { gap: 14px; }
+  .banca-row { grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 12px; }
+  .banca-amount { font-size: 1rem; }
+}
+</style>
+
+<body>
+<header class="site-header">
+  <h1>UCL <span>Tracker</span></h1>
+  <span class="badge-ucl">UCL 2025/26</span>
+  <span class="header-date">25 Nov 2026</span>
+</header>
+
+<div class="banca-row">
+  <div class="banca-card gold">
+    <div class="banca-label">Reto 5/5</div>
+    <div class="banca-amount" id="bk2-display">$50.000</div>
+    <div class="banca-sub">Meta: $100.000 COP</div>
+  </div>
+  <div class="banca-card">
+    <div class="banca-label">Banca Principal</div>
+    <div class="banca-amount" id="bk1-display">$50.000</div>
+    <div class="banca-sub">Meta: $500.000 COP</div>
+  </div>
+</div>
+
+<nav class="tabs">
+  <button class="tab-btn active" onclick="showTab('partidos')">Partidos</button>
+  <button class="tab-btn" onclick="showTab('analisis')">Análisis</button>
+  <button class="tab-btn" onclick="showTab('reto')">Reto 5/5</button>
+  <button class="tab-btn" onclick="showTab('banca')">Banca</button>
+</nav>
+
+<main class="main">
+
+<!-- ===================== PARTIDOS ===================== -->
+<div class="pane active" id="pane-partidos"></div>
+
+<!-- ===================== ANALISIS ===================== -->
+<div class="pane" id="pane-analisis"></div>
+
+<!-- ===================== RETO 5/5 ===================== -->
+<div class="pane" id="pane-reto"></div>
+
+<!-- ===================== BANCA ===================== -->
+<div class="pane" id="pane-banca"></div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════
+const MATCHES = [
+  {
+    id:'sabah-barca', time:'12:45',
+    home:{name:'Sabah FK',      abbr:'SAB', color:'#8B1A1A', fdId:null},
+    away:{name:'FC Barcelona',  abbr:'FCB', color:'#004D98', fdId:81},
+    odds:[25.00, 14.00, 1.07],
+    markets:[
+      {n:'Más de 2.5 goles', o:[{l:'Más',v:1.12},{l:'Menos',v:6.75}]},
+      {n:'Más de 3.5 goles', o:[{l:'Más ★',v:1.33,hl:true},{l:'Menos',v:3.45}]},
+      {n:'Más de 4.5 goles', o:[{l:'Más',v:1.74},{l:'Menos',v:2.12}]},
+      {n:'Ambos Marcan',     o:[{l:'Sí',v:1.79},{l:'No',v:1.97}]},
+      {n:'Doble Oportunidad',o:[{l:'1X',v:9.50},{l:'12 ★',v:1.02,hl:true},{l:'X2',v:1.03}]},
+    ],
+    rec:{pick:'Más de 3.5 goles', odds:1.33, risk:'low', reto:true, prin:false,
+         analysis:'Barcelona visita Sabah FK con una diferencia de clase abismal. El conjunto azulgrana promedia más de 4 goles en sus últimas salidas europeas y Sabah carece de la solidez defensiva para contener el ataque blaugrana. La cuota 1.33 en +3.5G ofrece valor real para un partido que podría ser un trámite.'}
+  },
+  {
+    id:'brugge-liverpool', time:'12:45',
+    home:{name:'Club Brugge',  abbr:'BRU', color:'#003580', fdId:5593},
+    away:{name:'Liverpool FC', abbr:'LIV', color:'#C8102E', fdId:64},
+    odds:[4.80, 3.90, 1.66],
+    markets:[
+      {n:'Más de 2.5 goles', o:[{l:'Más',v:1.70},{l:'Menos',v:2.15}]},
+      {n:'Ambos Marcan',     o:[{l:'Sí',v:1.80},{l:'No ★',v:1.95,hl:true}]},
+      {n:'Hándicap -1 Liverpool', o:[{l:'Liverpool -1',v:2.50},{l:'No',v:1.55}]},
+      {n:'Liverpool Gana ★',o:[{l:'Liverpool',v:1.66,hl:true}]},
+    ],
+    rec:{pick:'Liverpool Gana', odds:1.66, risk:'low', reto:true, prin:true,
+         analysis:'Liverpool llega en un gran momento de forma europeo. Brugge en casa es siempre complicado, pero los Reds tienen la calidad ofensiva para resolver fuera. Cuota justa que refleja el favoritismo sin castigo excesivo.'}
+  },
+  {
+    id:'inter-stuttgart', time:'12:45',
+    home:{name:'Inter Milán',    abbr:'INT', color:'#003399', fdId:108},
+    away:{name:'VfB Stuttgart',  abbr:'STU', color:'#E32219', fdId:11},
+    odds:[1.44, 4.20, 6.50],
+    markets:[
+      {n:'Más de 2.5 goles', o:[{l:'Más',v:1.80},{l:'Menos',v:1.95}]},
+      {n:'Ambos Marcan',     o:[{l:'Sí',v:1.78},{l:'No',v:1.98}]},
+      {n:'Inter Gana ★',     o:[{l:'Inter',v:1.44,hl:true}]},
+      {n:'Hándicap -1 Inter',o:[{l:'Inter -1',v:2.60},{l:'No',v:1.48}]},
+    ],
+    rec:{pick:'Inter Gana', odds:1.44, risk:'low', reto:true, prin:true,
+         analysis:'Inter es uno de los equipos más sólidos de Europa en este momento. Stuttgart viaja a San Siro sin chances reales de robar los 3 puntos. La cuota 1.44 es corta pero merece estar en el combinado por su alta probabilidad implícita (69%).'}
+  },
+  {
+    id:'lille-bayern', time:'12:45',
+    home:{name:'LOSC Lille',    abbr:'LIL', color:'#E22020', fdId:521},
+    away:{name:'Bayern Múnich', abbr:'BAY', color:'#DC052D', fdId:5},
+    odds:[4.60, 3.80, 1.61],
+    markets:[
+      {n:'Más de 2.5 goles', o:[{l:'Más',v:1.65},{l:'Menos',v:2.25}]},
+      {n:'Ambos Marcan',     o:[{l:'Sí',v:1.68},{l:'No',v:2.10}]},
+      {n:'Bayern Gana ★',    o:[{l:'Bayern',v:1.61,hl:true}]},
+      {n:'Bayern sin perder',o:[{l:'X2',v:1.17},{l:'1',v:4.60}]},
+    ],
+    rec:{pick:'Bayern Múnich Gana', odds:1.61, risk:'low', reto:true, prin:true,
+         analysis:'Bayern Múnich en modo europeo es una bestia diferente. Lille ha tenido una buena temporada local pero sufre contra grandes equipos fuera de casa. Los bávaros tienen el ataque y el centro del campo para dominar este encuentro.'}
+  },
+  {
+    id:'psg-roma', time:'12:45',
+    home:{name:'Paris Saint-Germain', abbr:'PSG', color:'#004170', fdId:559},
+    away:{name:'AS Roma',             abbr:'ROM', color:'#8B0000', fdId:100},
+    odds:[1.52, 4.10, 6.00],
+    markets:[
+      {n:'Más de 2.5 goles', o:[{l:'Más',v:1.72},{l:'Menos',v:2.05}]},
+      {n:'Ambos Marcan',     o:[{l:'Sí',v:1.80},{l:'No',v:1.95}]},
+      {n:'PSG Gana ★',       o:[{l:'PSG',v:1.52,hl:true}]},
+      {n:'PSG Gana sin perder',o:[{l:'1X',v:1.14}]},
+    ],
+    rec:{pick:'PSG Gana', odds:1.52, risk:'low', reto:true, prin:true,
+         analysis:'PSG en el Parc des Princes es un fortín en Champions. Roma viaja con muchas bajas y sin el empuje necesario para sorprender en París. La cuota 1.52 es manejable para un PSG que lleva varias jornadas sin ceder puntos en casa.'}
+  },
+  {
+    id:'slavia-villarreal', time:'12:45',
+    home:{name:'Slavia Praha',  abbr:'SLA', color:'#CC0000', fdId:null},
+    away:{name:'Villarreal CF', abbr:'VIL', color:'#FFE001', fdId:449},
+    odds:[3.60, 3.50, 1.90],
+    markets:[
+      {n:'Más de 2.5 goles', o:[{l:'Más',v:1.75},{l:'Menos',v:2.05}]},
+      {n:'Ambos Marcan',     o:[{l:'Sí',v:1.68},{l:'No',v:2.10}]},
+    ],
+    rec:{pick:null, odds:null, risk:'high', reto:false, prin:false,
+         analysis:'Partido con cuotas ajustadas (Villarreal 1.90). Riesgo no justificado para nuestros objetivos. Partido a seguir pero sin apuesta recomendada.'}
+  },
+  {
+    id:'atletico-viking', time:'12:45',
+    home:{name:'Atlético Madrid', abbr:'ATM', color:'#CB3524', fdId:78},
+    away:{name:'Viking FK',       abbr:'VIK', color:'#004A97', fdId:null},
+    odds:[1.12, 7.00, 15.00],
+    markets:[
+      {n:'Más de 2.5 goles', o:[{l:'Más',v:1.90},{l:'Menos',v:1.85}]},
+      {n:'Ambos Marcan',     o:[{l:'Sí',v:2.10},{l:'No',v:1.72}]},
+      {n:'Atlético Gana',    o:[{l:'Atlético',v:1.12}]},
+    ],
+    rec:{pick:null, odds:null, risk:'high', reto:false, prin:false,
+         analysis:'Atlético es clarísimo favorito (1.12) pero la cuota es demasiado baja. Incluso en un combinado el retorno no justifica el riesgo de cualquier imprevisto. Partido a descartar.'}
+  },
+  {
+    id:'shakhtar-fenerbahce', time:'12:45',
+    home:{name:'Shakhtar Donetsk', abbr:'SHA', color:'#F97316', fdId:1887},
+    away:{name:'Fenerbahçe SK',    abbr:'FEN', color:'#FFD700', fdId:null},
+    odds:[2.80, 3.20, 2.50],
+    markets:[
+      {n:'Más de 2.5 goles', o:[{l:'Más',v:1.78},{l:'Menos',v:2.00}]},
+      {n:'Ambos Marcan',     o:[{l:'Sí',v:1.72},{l:'No',v:2.05}]},
+    ],
+    rec:{pick:null, odds:null, risk:'high', reto:false, prin:false,
+         analysis:'Partido equilibrado sin favorito claro. Ninguna opción ofrece suficiente valor para nuestras estrategias en este jornada.'}
+  },
+];
+
+const RETO_PICKS = [
+  {matchId:'sabah-barca',    teams:'FC Barcelona',   bet:'Más de 3.5 goles', odds:1.33},
+  {matchId:'brugge-liverpool',teams:'Liverpool FC',  bet:'Liverpool Gana',   odds:1.66},
+  {matchId:'inter-stuttgart', teams:'Inter Milán',   bet:'Inter Gana',       odds:1.44},
+  {matchId:'lille-bayern',    teams:'Bayern Múnich', bet:'Bayern Múnich Gana', odds:1.61},
+  {matchId:'psg-roma',        teams:'PSG',           bet:'PSG Gana',         odds:1.52},
+];
+const RETO_COMBINED = RETO_PICKS.reduce((a,p)=>a*p.odds,1); // 7.779
+const RETO_STAKE    = Math.round(100000 / RETO_COMBINED);   // 12852
+
+const PRIN_PICKS = [
+  {matchId:'brugge-liverpool', teams:'Liverpool FC',  bet:'Liverpool Gana',     odds:1.66, stake:2500},
+  {matchId:'inter-stuttgart',  teams:'Inter Milán',   bet:'Inter Gana',         odds:1.44, stake:2500},
+  {matchId:'lille-bayern',     teams:'Bayern Múnich', bet:'Bayern Múnich Gana', odds:1.61, stake:2500},
+  {matchId:'psg-roma',         teams:'PSG',           bet:'PSG Gana',           odds:1.52, stake:2500},
+];
+
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+let STATE = { bk1:50000, bk2:50000, reto:{}, prin:{} };
+try {
+  const s = JSON.parse(localStorage.getItem('ucl_state_v1') || 'null');
+  if(s) STATE = s;
+} catch(e){}
+
+function saveState() {
+  try { localStorage.setItem('ucl_state_v1', JSON.stringify(STATE)); } catch(e){}
+}
+
+// ═══════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════
+function fmt(n) {
+  return '$' + Math.round(n).toLocaleString('es-CO').replace(/,/g,'.');
+}
+
+function crestUrl(fdId) {
+  if(!fdId) return null;
+  return `https://crests.football-data.org/${fdId}.png`;
+}
+
+function teamHtml(t) {
+  if(t.fdId) {
+    return `<img class="team-crest" src="${crestUrl(t.fdId)}" alt="${t.name}"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <span class="crest-fallback" style="background:${t.color};display:none">${t.abbr.slice(0,2)}</span>`;
+  }
+  return `<span class="crest-fallback" style="background:${t.color}">${t.abbr.slice(0,2)}</span>`;
+}
+
+function riskHtml(r) {
+  return `<span class="risk-pill risk-${r}">${r==='low'?'BAJO':r==='medium'?'MEDIO':'ALTO'}</span>`;
+}
+
+// Recalculate bancas from scratch based on results
+function recalcBancas() {
+  // Principal: each win adds (stake*odds - stake), each loss deducts stake
+  let bk1 = 50000;
+  for(const p of PRIN_PICKS) {
+    const r = STATE.prin[p.matchId];
+    if(r==='W') bk1 += p.stake*(p.odds-1);
+    else if(r==='L') bk1 -= p.stake;
+  }
+  STATE.bk1 = Math.max(0, bk1);
+
+  // Reto: all win → 50000 + (RETO_STAKE*RETO_COMBINED - RETO_STAKE); any loss → 50000 - RETO_STAKE
+  const wins = RETO_PICKS.filter(p=>STATE.reto[p.matchId]==='W').length;
+  const losses = RETO_PICKS.filter(p=>STATE.reto[p.matchId]==='L').length;
+  if(losses > 0) {
+    STATE.bk2 = Math.max(0, 50000 - RETO_STAKE);
+  } else if(wins === RETO_PICKS.length) {
+    STATE.bk2 = 50000 - RETO_STAKE + RETO_STAKE * RETO_COMBINED;
+  } else {
+    STATE.bk2 = 50000; // still pending
+  }
+}
+
+function updateBancaDisplay() {
+  document.getElementById('bk1-display').textContent = fmt(STATE.bk1);
+  document.getElementById('bk2-display').textContent = fmt(STATE.bk2);
+}
+
+// ═══════════════════════════════════════════════════
+//  TAB NAVIGATION
+// ═══════════════════════════════════════════════════
+function showTab(tab) {
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pane-'+tab).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDER: PARTIDOS
+// ═══════════════════════════════════════════════════
+function renderPartidos() {
+  const container = document.getElementById('pane-partidos');
+  container.innerHTML = '<div class="section-label">Jornada · 25 Nov 2026 · Fase de Grupos</div>';
+
+  for(const m of MATCHES) {
+    const rec = m.rec;
+    const hasRec = rec.pick !== null;
+    const retoTag = rec.reto ? `<span class="risk-pill" style="background:var(--gsft);color:var(--gold);border:1px solid var(--gbrd)">RETO</span>` : '';
+    const prinTag = rec.prin ? `<span class="risk-pill" style="background:rgba(16,185,129,.15);color:var(--grn)">PRIN</span>` : '';
+
+    const card = document.createElement('div');
+    card.className = 'match-card';
+    card.innerHTML = `
+      <div class="match-header">
+        <span class="match-time">${m.time}</span>
+        <div class="match-teams">
+          <div class="team-block">
+            ${teamHtml(m.home)}
+            <span class="team-name">${m.home.name}</span>
+          </div>
+          <span class="vs-badge">VS</span>
+          <div class="team-block">
+            ${teamHtml(m.away)}
+            <span class="team-name">${m.away.name}</span>
+          </div>
+        </div>
+        ${retoTag}${prinTag}
+      </div>
+      <div class="odds-row">
+        <div class="odd-btn"><span class="odd-label">1 - Local</span><span class="odd-val">${m.odds[0].toFixed(2)}</span></div>
+        <div class="odd-btn"><span class="odd-label">X - Empate</span><span class="odd-val">${m.odds[1].toFixed(2)}</span></div>
+        <div class="odd-btn"><span class="odd-label">2 - Visita</span><span class="odd-val">${m.odds[2].toFixed(2)}</span></div>
+      </div>
+      <button class="markets-toggle" onclick="toggleMarkets('${m.id}',this)">
+        Más mercados (${m.markets.length}) <span class="arrow">▼</span>
+      </button>
+      <div class="markets-body" id="mkts-${m.id}">
+        ${m.markets.map(mk=>`
+          <div class="market-row">
+            <span class="market-name">${mk.n}</span>
+            <div class="market-odds">
+              ${mk.o.map(o=>`<span class="mkt-opt${o.hl?' hl':''}">${o.l} ${o.v.toFixed(2)}</span>`).join('')}
+            </div>
+          </div>`).join('')}
+      </div>
+      ${hasRec ? `
+      <div class="rec-block ${rec.risk}">
+        <div class="rec-top">
+          <span class="rec-pick">▶ ${rec.pick}</span>
+          ${riskHtml(rec.risk)}
+          <span class="rec-odds">${rec.odds.toFixed(2)}</span>
+        </div>
+        <div class="rec-analysis">${rec.analysis}</div>
+      </div>` : `
+      <div style="padding:0 14px 12px">
+        <div class="rec-analysis" style="font-style:italic">Sin apuesta recomendada. ${rec.analysis}</div>
+      </div>`}
+    `;
+    container.appendChild(card);
+  }
+}
+
+function toggleMarkets(id, btn) {
+  const body = document.getElementById('mkts-'+id);
+  const open = body.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDER: ANALISIS
+// ═══════════════════════════════════════════════════
+function renderAnalisis() {
+  const container = document.getElementById('pane-analisis');
+  container.innerHTML = '<div class="section-label">Análisis detallado por partido</div>';
+
+  for(const m of MATCHES) {
+    if(!m.rec.pick) continue;
+    const card = document.createElement('div');
+    card.className = 'analysis-card';
+    card.innerHTML = `
+      <div class="analysis-match">${m.home.name} vs ${m.away.name}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:.9rem">▶ ${m.rec.pick}</span>
+        ${riskHtml(m.rec.risk)}
+        <span style="margin-left:auto;font-family:'Space Grotesk',sans-serif;font-weight:800;color:var(--gold)">${m.rec.odds.toFixed(2)}</span>
+      </div>
+      <div class="analysis-text">${m.rec.analysis}</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        ${m.rec.reto ? '<span class="risk-pill" style="background:var(--gsft);color:var(--gold);border:1px solid var(--gbrd)">RETO 5/5</span>' : ''}
+        ${m.rec.prin ? '<span class="risk-pill" style="background:rgba(16,185,129,.15);color:var(--grn)">BANCA PRINCIPAL</span>' : ''}
+        <span style="font-size:.72rem;color:var(--t3);margin-left:auto">${m.time} · ${m.home.name} vs ${m.away.name}</span>
+      </div>
+    `;
+    container.appendChild(card);
+  }
+
+  // Skipped matches
+  const skipped = document.createElement('div');
+  skipped.innerHTML = `<div class="section-label" style="margin-top:16px">Partidos descartados</div>`;
+  container.appendChild(skipped);
+  for(const m of MATCHES) {
+    if(m.rec.pick) continue;
+    const card = document.createElement('div');
+    card.className = 'analysis-card';
+    card.style.opacity = '.6';
+    card.innerHTML = `
+      <div class="analysis-match" style="color:var(--t2)">${m.home.name} vs ${m.away.name}</div>
+      <div class="analysis-text">${m.rec.analysis}</div>
+    `;
+    container.appendChild(card);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDER: RETO 5/5
+// ═══════════════════════════════════════════════════
+function renderReto() {
+  const container = document.getElementById('pane-reto');
+  const wins = RETO_PICKS.filter(p=>STATE.reto[p.matchId]==='W').length;
+  const losses = RETO_PICKS.filter(p=>STATE.reto[p.matchId]==='L').length;
+  const pending = RETO_PICKS.length - wins - losses;
+
+  container.innerHTML = `
+    <div class="reto-header">
+      <div class="reto-title">★ RETO 5/5 ★</div>
+      <div class="reto-subtitle">Acumuladora de 5 selecciones · Todas deben ganar</div>
+      <div class="reto-math">
+        <div class="reto-stat">
+          <div class="reto-stat-val">${RETO_COMBINED.toFixed(2)}×</div>
+          <div class="reto-stat-lbl">Cuota combinada</div>
+        </div>
+        <div class="reto-stat">
+          <div class="reto-stat-val">${fmt(RETO_STAKE)}</div>
+          <div class="reto-stat-lbl">Stake</div>
+        </div>
+        <div class="reto-stat">
+          <div class="reto-stat-val gold">$100.000</div>
+          <div class="reto-stat-lbl">Retorno objetivo</div>
+        </div>
+        <div class="reto-stat">
+          <div class="reto-stat-val" style="color:${losses>0?'var(--red)':wins===5?'var(--grn)':'var(--ylw)'}">${wins}✓ ${losses>0?losses+'✗':''} ${pending>0?pending+'⏳':''}</div>
+          <div class="reto-stat-lbl">Estado</div>
+        </div>
+      </div>
+    </div>
+    <div class="section-label">Selecciones</div>
+    <div id="reto-picks-list"></div>
+    <div style="background:var(--sfc);border:1px solid var(--brd);border-radius:10px;padding:12px 14px;margin-top:12px">
+      <div style="font-size:.78rem;color:var(--t2);line-height:1.6">
+        <strong style="color:var(--txt)">Cómo funciona:</strong> Si las 5 selecciones ganan, la banca del Reto sube de ${fmt(50000)} a ${fmt(STATE.bk2 > 50000 ? STATE.bk2 : 100000)}.
+        Si alguna pierde, pierdes el stake de ${fmt(RETO_STAKE)} y la banca queda en ${fmt(50000-RETO_STAKE)}.
+        Registra los resultados con los botones ✓ / ✗ abajo.
+      </div>
+    </div>
+  `;
+
+  const list = container.querySelector('#reto-picks-list');
+  RETO_PICKS.forEach((p,i)=>{
+    const r = STATE.reto[p.matchId];
+    const card = document.createElement('div');
+    card.className = 'reto-pick-card';
+    card.innerHTML = `
+      <div class="pick-num">${i+1}</div>
+      <div class="pick-info">
+        <div class="pick-teams">${p.teams}</div>
+        <div class="pick-bet">${p.bet}</div>
+      </div>
+      <span class="pick-status ${r==='W'?'win':r==='L'?'loss':'pending'}">${r==='W'?'GANÓ':r==='L'?'PERDIÓ':'Pendiente'}</span>
+      <span class="pick-odds-val">${p.odds.toFixed(2)}</span>
+      <div class="result-btns">
+        <button class="rbtn win ${r==='W'?'active':''}" onclick="setResult('reto','${p.matchId}','W')">✓</button>
+        <button class="rbtn loss ${r==='L'?'active':''}" onclick="setResult('reto','${p.matchId}','L')">✗</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDER: BANCA
+// ═══════════════════════════════════════════════════
+function renderBanca() {
+  const container = document.getElementById('pane-banca');
+
+  const prinWins  = PRIN_PICKS.filter(p=>STATE.prin[p.matchId]==='W').length;
+  const prinLoss  = PRIN_PICKS.filter(p=>STATE.prin[p.matchId]==='L').length;
+  const retoWins  = RETO_PICKS.filter(p=>STATE.reto[p.matchId]==='W').length;
+  const retoLoss  = RETO_PICKS.filter(p=>STATE.reto[p.matchId]==='L').length;
+
+  const prinPct = Math.min(100, ((STATE.bk1-50000)/(500000-50000)*100 + 0));
+  const retoPct = STATE.bk2 >= 100000 ? 100 : (STATE.bk2 / 100000)*100;
+
+  const potentialPrin = PRIN_PICKS.reduce((s,p)=>s+p.stake*p.odds, 0);
+
+  container.innerHTML = `
+    <div class="section-label">Resumen de bancas · 25 Nov 2026</div>
+
+    <!-- Reto -->
+    <div class="banca-detail" style="border-color:var(--gbrd)">
+      <h3 style="color:var(--gold)">★ Reto 5/5</h3>
+      <div style="font-size:.82rem;color:var(--t2);margin-bottom:12px">$50.000 → $100.000 COP</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:800">${fmt(STATE.bk2)}</span>
+        <span style="font-size:.78rem;color:var(--t2)">${retoWins}/5 picks ${retoLoss>0?'| '+retoLoss+' perdidos':''}</span>
+      </div>
+      <div class="banca-progress-bar"><div class="banca-progress-fill" style="width:${Math.max(2,retoPct)}%"></div></div>
+      <div class="banca-nums"><span>${fmt(50000)}</span><span>${fmt(100000)}</span></div>
+      <div style="margin-top:12px">
+        <div class="section-label" style="padding-top:4px">Selecciones del Reto</div>
+        ${RETO_PICKS.map((p,i)=>{
+          const r = STATE.reto[p.matchId];
+          return `<div class="prin-pick-card" style="margin-bottom:6px">
+            <div class="prin-pick-top">
+              <div class="pick-num">${i+1}</div>
+              <div class="pick-info">
+                <div class="pick-teams">${p.teams}</div>
+                <div class="pick-bet">${p.bet}</div>
+              </div>
+              <span class="pick-status ${r==='W'?'win':r==='L'?'loss':'pending'}">${r==='W'?'GANÓ':r==='L'?'PERDIÓ':'⏳'}</span>
+              <span class="pick-odds-val">${p.odds.toFixed(2)}</span>
+              <div class="result-btns">
+                <button class="rbtn win ${r==='W'?'active':''}" onclick="setResult('reto','${p.matchId}','W')">✓</button>
+                <button class="rbtn loss ${r==='L'?'active':''}" onclick="setResult('reto','${p.matchId}','L')">✗</button>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Principal -->
+    <div class="banca-detail" style="border-color:rgba(16,185,129,.3)">
+      <h3 style="color:var(--grn)">Banca Principal</h3>
+      <div style="font-size:.82rem;color:var(--t2);margin-bottom:12px">$50.000 → $500.000 COP · Singles 5% banca</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:800">${fmt(STATE.bk1)}</span>
+        <span style="font-size:.78rem;color:var(--t2)">${prinWins} ganados · ${prinLoss} perdidos</span>
+      </div>
+      <div class="banca-progress-bar" style="height:6px">
+        <div class="banca-progress-fill" style="width:${Math.max(2,(STATE.bk1/500000)*100)}%;background:linear-gradient(90deg,var(--grn),#6EE7B7)"></div>
+      </div>
+      <div class="banca-nums"><span>${fmt(50000)}</span><span>${fmt(500000)}</span></div>
+      <div style="margin-top:12px">
+        <div class="section-label" style="padding-top:4px">Apuestas singles esta jornada</div>
+        ${PRIN_PICKS.map(p=>{
+          const r = STATE.prin[p.matchId];
+          const profit = r==='W'? p.stake*(p.odds-1) : r==='L'? -p.stake : 0;
+          return `<div class="prin-pick-card" style="margin-bottom:6px">
+            <div class="prin-pick-top">
+              <div class="pick-info">
+                <div class="pick-teams">${p.teams}</div>
+                <div class="pick-bet">${p.bet}</div>
+              </div>
+              <span class="pick-status ${r==='W'?'win':r==='L'?'loss':'pending'}">${r==='W'?'GANÓ':r==='L'?'PERDIÓ':'⏳'}</span>
+              <span class="pick-odds-val">${p.odds.toFixed(2)}</span>
+              <div class="result-btns">
+                <button class="rbtn win ${r==='W'?'active':''}" onclick="setResult('prin','${p.matchId}','W')">✓</button>
+                <button class="rbtn loss ${r==='L'?'active':''}" onclick="setResult('prin','${p.matchId}','L')">✗</button>
+              </div>
+            </div>
+            <div class="prin-stake">
+              Stake: <span class="stake-val">${fmt(p.stake)}</span>
+              Potencial: <span class="potential-val">${fmt(p.stake*p.odds)}</span>
+              ${r?`<span style="font-weight:600;color:${profit>=0?'var(--grn)':'var(--red)'}">${profit>=0?'+':''}${fmt(profit)}</span>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="background:var(--sfc2);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:.8rem;color:var(--t2)">
+        Si todas las singles ganan hoy: <strong style="color:var(--grn)">${fmt(50000+PRIN_PICKS.reduce((s,p)=>s+p.stake*(p.odds-1),0))}</strong>
+        (+${fmt(PRIN_PICKS.reduce((s,p)=>s+p.stake*(p.odds-1),0))})
+      </div>
+    </div>
+
+    <button onclick="resetState()" style="width:100%;margin-top:8px;background:none;border:1px solid var(--t3);border-radius:8px;padding:10px;color:var(--t2);font-size:.8rem;cursor:pointer">
+      Reiniciar todos los resultados
+    </button>
+  `;
+}
+
+// ═══════════════════════════════════════════════════
+//  RESULT HANDLER
+// ═══════════════════════════════════════════════════
+function setResult(type, matchId, val) {
+  if(STATE[type][matchId]===val) {
+    delete STATE[type][matchId];
+  } else {
+    STATE[type][matchId] = val;
+  }
+  recalcBancas();
+  saveState();
+  updateBancaDisplay();
+  // Re-render active pane
+  const active = document.querySelector('.pane.active').id.replace('pane-','');
+  renderPane(active);
+}
+
+function resetState() {
+  if(!confirm('¿Reiniciar todos los resultados?')) return;
+  STATE = {bk1:50000, bk2:50000, reto:{}, prin:{}};
+  saveState();
+  updateBancaDisplay();
+  renderPane('banca');
+}
+
+function renderPane(tab) {
+  if(tab==='partidos') renderPartidos();
+  else if(tab==='analisis') renderAnalisis();
+  else if(tab==='reto') renderReto();
+  else if(tab==='banca') renderBanca();
+}
+
+// Override showTab to also re-render
+window.showTab = function(tab) {
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pane-'+tab).classList.add('active');
+  event.currentTarget.classList.add('active');
+  renderPane(tab);
+};
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+recalcBancas();
+updateBancaDisplay();
+renderPartidos();
+renderAnalisis();
+renderReto();
+renderBanca();
+</script>
